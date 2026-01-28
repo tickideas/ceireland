@@ -190,7 +190,12 @@ export default function CTAButtons() {
 
   if (loading || !settings) return null
 
-  const hasAnyButton = settings.givingEnabled || settings.prayerEnabled || settings.salvationEnabled
+  // Only show buttons that are both enabled AND have content configured
+  const showGiving = settings.givingEnabled && (settings.givingUrl?.trim() || settings.offlineGivingDetails?.trim())
+  const showPrayer = settings.prayerEnabled
+  const showSalvation = settings.salvationEnabled && settings.salvationPrayer?.trim()
+
+  const hasAnyButton = showGiving || showPrayer || showSalvation
 
   if (!hasAnyButton) return null
 
@@ -198,7 +203,7 @@ export default function CTAButtons() {
     <>
       <div className="flex justify-center mt-4 px-2 lg:px-0">
         <div className="flex flex-wrap justify-center gap-3 w-full lg:w-[85%]">
-          {settings.givingEnabled && (
+          {showGiving && (
             <button
               onClick={handleGivingClick}
               className="flex-1 min-w-[140px] max-w-[280px] flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full font-medium shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
@@ -209,7 +214,7 @@ export default function CTAButtons() {
             </button>
           )}
 
-          {settings.prayerEnabled && (
+          {showPrayer && (
             <button
               onClick={handlePrayerModalOpen}
               className="flex-1 min-w-[140px] max-w-[280px] flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full font-medium shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
@@ -220,7 +225,7 @@ export default function CTAButtons() {
             </button>
           )}
 
-          {settings.salvationEnabled && (
+          {showSalvation && (
             <button
               onClick={handleSalvationModalOpen}
               className="flex-1 min-w-[140px] max-w-[280px] flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full font-medium shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
