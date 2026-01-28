@@ -205,7 +205,9 @@ export async function GET(request: NextRequest) {
     const today = dateParam || new Date().toISOString().slice(0, 10)
     const apiUrl = `${base}/api/ror-translations/${today}/${encodeURIComponent(lang)}`
     try {
-      const apiRes = await fetch(apiUrl, { headers: { Accept: 'application/json' }, next: { revalidate: 3600 } })
+      console.log('[Rhapsody] Fetching JSON API:', apiUrl)
+      const apiRes = await fetch(apiUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      console.log('[Rhapsody] JSON API status:', apiRes.status)
       if (apiRes.ok) {
         const data = await apiRes.json()
         const dev = data?.devotionals?.[0]
@@ -260,9 +262,11 @@ export async function GET(request: NextRequest) {
         }
       }
     } catch (e) {
+      console.error('[Rhapsody] JSON API error:', e instanceof Error ? e.message : e)
       // fall through to HTML scraping if API fails
     }
 
+    console.log('[Rhapsody] Falling back to HTML scraping')
     const candidates = [
       sourceUrl,
       `${sourceUrl}/`,
@@ -272,11 +276,15 @@ export async function GET(request: NextRequest) {
     ]
     let res: Response | null = null
     for (const url of candidates) {
-      const r = await fetch(url, {
-        headers: { 'user-agent': 'Mozilla/5.0 (compatible; CEIrelandBot/1.0)' },
-        next: { revalidate: 3600 },
-      })
-      if (r.ok) { res = r; break }
+      try {
+        const r = await fetch(url, {
+          headers: { 'user-agent': 'Mozilla/5.0 (compatible; CEIrelandBot/1.0)' },
+          cache: 'no-store',
+        })
+        if (r.ok) { res = r; break }
+      } catch (e) {
+        console.error('[Rhapsody] HTML fetch failed for', url, e instanceof Error ? e.message : e)
+      }
     }
     if (!res) {
       return NextResponse.json({ error: 'Upstream fetch failed' }, { status: 502 })
