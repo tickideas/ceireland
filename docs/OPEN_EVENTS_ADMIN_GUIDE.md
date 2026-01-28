@@ -206,8 +206,31 @@ A: Yes, open events work on all devices. Guests can access from smartphones, tab
 
 ---
 
+## Developer Reference
+
+### API Endpoints
+
+- `GET /api/admin/open-events/:id/attendance/summary` — Aggregated statistics
+- `GET /api/admin/open-events/:id/attendance/daily` — Daily breakdown with pagination
+- `GET /api/admin/open-events/:id/attendance/export` — Streamed CSV export
+
+### Key File Locations
+
+- **Database Schema:** `prisma/schema.prisma`
+- **Admin Component:** `src/components/admin/OpenEventManager.tsx`
+- **Tracking Component:** `src/components/OpenEventAttendanceTracker.tsx`
+- **Admin Auth Helper:** `src/lib/adminAuth.ts`
+- **API Routes:**
+  - Management: `src/app/api/open-events/[id]/route.ts`
+  - Record Attendance: `src/app/api/open-events/attendance/route.ts`
+  - Summary: `src/app/api/admin/open-events/[id]/attendance/summary/route.ts`
+  - Daily: `src/app/api/admin/open-events/[id]/attendance/daily/route.ts`
+  - Export: `src/app/api/admin/open-events/[id]/attendance/export/route.ts`
+
+---
+
 ## Support
 
 If you encounter issues with Open Events or have questions not covered in this guide, please contact your technical administrator or developer.
 
-For feature requests or enhancements (like viewing attendance data), please submit a ticket or request to your development team.
+For feature requests or enhancements, please submit a ticket or request to your development team.

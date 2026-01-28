@@ -8,7 +8,6 @@ A modern, intuitive, and beautiful online church platform for Christ Embassy Ire
 - Guidance for human/AI contributors: `AGENTS.md`
 - Operations runbook: `docs/OPERATIONS.md`
 - Deployment guide: `docs/DEPLOYMENT_GUIDE.md`
-- Quick feature reference: `docs/QUICK_REFERENCE.md`
 - Open Events Admin Guide: `docs/OPEN_EVENTS_ADMIN_GUIDE.md`
 
 ## ✨ Features
