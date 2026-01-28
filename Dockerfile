@@ -11,7 +11,7 @@ COPY package.json package-lock.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -20,8 +20,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
-RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
+RUN npx prisma generate --no-hints
 RUN npm run build
 
 # Production image, copy all the files and run next
