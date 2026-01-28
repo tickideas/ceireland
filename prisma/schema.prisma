@@ -1,0 +1,293 @@
+// Prisma schema for PRODUCTION (PostgreSQL)
+// Keep local development on PostgreSQL as well to avoid drift.
+// If you need SQLite for quick prototyping, use a separate branch or file.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  title       String?
+  name        String
+  lastName    String
+  email       String   @unique
+  phone       String?
+  approved    Boolean  @default(false)
+  role        Role     @default(USER)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendance      Attendance[]
+  viewerSessions  ViewerSession[]
+  openEventAttendance OpenEventAttendance[]
+
+  // Note: @unique on email already creates an index, no need for @@index([email])
+  @@index([approved])
+  @@index([role])
+  @@index([createdAt])
+  @@index([approved, createdAt]) // Composite index for common admin queries
+  @@map("users")
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  hlsUrl      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendance  Attendance[]
+
+  @@index([date])
+  @@index([isActive])
+  @@map("services")
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  userId      String
+  serviceId   String
+  checkInTime DateTime @default(now())
+
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  service     Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, serviceId])
+  @@index([userId])
+  @@index([serviceId])
+  @@index([checkInTime])
+  @@map("attendance")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  title     String
+  imageUrl  String
+  linkUrl   String?
+  active    Boolean  @default(true)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@index([order])
+  @@map("banners")
+}
+
+model StreamSettings {
+  id          String   @id @default(cuid())
+  streamUrl   String?
+  posterUrl   String?
+  isActive    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("stream_settings")
+}
+
+// Settings for the main dashboard header and service information cards
+model ServiceSettings {
+  id                String   @id @default(cuid())
+  appName           String   @default("Church App")
+  headerTitle       String   @default("Church Service")
+  sundayLabel       String   @default("Sunday")
+  sundayTime        String   @default("10:00 AM")
+  wednesdayLabel    String   @default("Wednesday")
+  wednesdayTime     String   @default("7:00 PM")
+  prayerLabel       String   @default("Prayer")
+  prayerTime        String   @default("Daily 6:00 AM")
+  authBackgroundUrl String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("service_settings")
+}
+
+model ViewerSession {
+  id        String   @id @default(cuid())
+  userId    String
+  sessionId String   @unique
+  lastSeen  DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lastSeen])
+  @@map("viewer_sessions")
+}
+
+model OpenEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(false)
+  allowPublic Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  attendance  OpenEventAttendance[]
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive])
+  @@map("open_events")
+}
+
+model OpenEventAttendance {
+  id              String   @id @default(cuid())
+  openEventId     String
+  sessionId       String?  // For anonymous users
+  userId          String?  // For authenticated users
+  checkInTime     DateTime @default(now())
+  ipAddress       String?
+  userAgent       String?
+
+  // Relations
+  openEvent       OpenEvent @relation(fields: [openEventId], references: [id], onDelete: Cascade)
+  user            User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([openEventId])
+  @@index([sessionId])
+  @@index([userId])
+  @@index([checkInTime])
+  @@unique([sessionId, openEventId])
+  @@unique([userId, openEventId])
+  @@map("open_event_attendance")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum RecurrenceType {
+  NONE      // One-off event
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum DayOfWeek {
+  SUNDAY
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+}
+
+model ServiceSchedule {
+  id              String         @id @default(cuid())
+  name            String         // e.g., "Sunday Service", "Wednesday Bible Study"
+  description     String?
+  time            String         // e.g., "10:00 AM"
+  isActive        Boolean        @default(true)
+  order           Int            @default(0)
+  
+  // Recurrence settings
+  recurrenceType  RecurrenceType @default(WEEKLY)
+  dayOfWeek       DayOfWeek?     // For WEEKLY recurrence
+  dayOfMonth      Int?           // For MONTHLY recurrence (1-31)
+  
+  // One-off event date (used when recurrenceType is NONE)
+  specificDate    DateTime?
+  
+  // Styling
+  color           String         @default("blue") // blue, emerald, amber, purple, pink, etc.
+  icon            String         @default("sun")  // sun, book, heart, star, etc.
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([isActive])
+  @@index([order])
+  @@index([recurrenceType])
+  @@map("service_schedules")
+}
+
+// CTA (Call-to-Action) Buttons Settings
+model CTASettings {
+  id                    String   @id @default(cuid())
+  
+  // Online Giving
+  givingEnabled         Boolean  @default(true)
+  givingButtonLabel     String   @default("Online Giving")
+  givingUrl             String?  // External link for online giving
+  offlineGivingTitle    String   @default("Offline Giving Details")
+  offlineGivingDetails  String?  // Shown when no external URL
+  givingColorFrom       String   @default("#ec4899") // pink-500
+  givingColorTo         String   @default("#f43f5e") // rose-500
+  
+  // Prayer Request
+  prayerEnabled         Boolean  @default(true)
+  prayerButtonLabel     String   @default("Prayer Request")
+  prayerFormTitle       String   @default("Submit Your Prayer Request")
+  prayerFormDescription String?
+  prayerColorFrom       String   @default("#3b82f6") // blue-500
+  prayerColorTo         String   @default("#6366f1") // indigo-500
+  
+  // Salvation
+  salvationEnabled      Boolean  @default(true)
+  salvationButtonLabel  String   @default("Accept Christ")
+  salvationTitle        String   @default("Prayer of Salvation")
+  salvationPrayer       String?  // The prayer text shown to users
+  salvationConfirmText  String   @default("I just said this prayer")
+  salvationColorFrom    String   @default("#f59e0b") // amber-500
+  salvationColorTo      String   @default("#f97316") // orange-500
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("cta_settings")
+}
+
+// Prayer Requests submitted by users
+model PrayerRequest {
+  id          String   @id @default(cuid())
+  name        String
+  email       String?
+  phone       String?
+  request     String
+  isRead      Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  notes       String?  // Admin notes
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isRead])
+  @@index([isArchived])
+  @@index([createdAt])
+  @@map("prayer_requests")
+}
+
+// Salvation responses from users who prayed the prayer
+model SalvationResponse {
+  id              String   @id @default(cuid())
+  name            String
+  email           String
+  phone           String?
+  followedUp      Boolean  @default(false)
+  followUpNotes   String?  // Admin notes about follow-up
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([followedUp])
+  @@index([createdAt])
+  @@map("salvation_responses")
+}
