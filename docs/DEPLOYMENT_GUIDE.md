@@ -1,12 +1,16 @@
-# ZChurch Deployment Guide
+# Christ Embassy Ireland Deployment Guide
 
-Purpose: Practical, copy/paste runbook for creating or updating a deployment (Vercel + PostgreSQL). For deeper ops detail see [docs/OPERATIONS.md](docs/OPERATIONS.md) and high‑level app intro in [README.md](README.md).
+Purpose: Practical, copy/paste runbook for creating or updating a deployment. For deeper ops detail see [docs/OPERATIONS.md](docs/OPERATIONS.md) and high‑level app intro in [README.md](README.md).
+
+**Deployment Options:**
+- **Vercel + PostgreSQL** (covered in this guide)
+- **Dokploy + Self-hosted PostgreSQL** (see [DOKPLOY_DEPLOYMENT.md](./DOKPLOY_DEPLOYMENT.md))
 
 ---
 
 ## 1. Environments
 
-- Production: Vercel (app) + managed/self‑hosted PostgreSQL (Neon, Supabase, Vercel Postgres, Coolify, RDS, etc.).
+- Production: Vercel/Dokploy (app) + managed/self‑hosted PostgreSQL (Neon, Supabase, Vercel Postgres, Dokploy, Coolify, RDS, etc.).
 - Staging (optional but recommended): Same stack, separate DB + env vars.
 - Local Dev: Uses the same PostgreSQL schema defined in [prisma/schema.prisma](prisma/schema.prisma).
 
@@ -27,7 +31,7 @@ Set in Vercel Project → Settings → Environment Variables (Production + Previ
 | RHAPSODY_LANG (optional) | Default devotional language |
 
 If the repo root in Vercel is a monorepo subfolder, also add:  
-PRISMA_SCHEMA = zchurch/prisma/schema.prisma
+PRISMA_SCHEMA = ceireland/prisma/schema.prisma
 
 ---
 

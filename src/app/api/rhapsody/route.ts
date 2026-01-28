@@ -273,7 +273,7 @@ export async function GET(request: NextRequest) {
     let res: Response | null = null
     for (const url of candidates) {
       const r = await fetch(url, {
-        headers: { 'user-agent': 'Mozilla/5.0 (compatible; ZChurchBot/1.0)' },
+        headers: { 'user-agent': 'Mozilla/5.0 (compatible; CEIrelandBot/1.0)' },
         next: { revalidate: 3600 },
       })
       if (r.ok) { res = r; break }

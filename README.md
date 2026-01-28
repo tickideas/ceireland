@@ -1,6 +1,6 @@
-# Church App - Online Church Platform
+# Christ Embassy Ireland - Online Church Platform
 
-A modern, intuitive, and beautiful online church platform built with Next.js 16 (App Router) and React 19. It delivers passwordless authentication, live streaming, user management, and comprehensive analytics so congregations can gather and stay informed from anywhere.
+A modern, intuitive, and beautiful online church platform for Christ Embassy Ireland, built with Next.js 16 (App Router) and React 19. It delivers passwordless authentication, live streaming, user management, and comprehensive analytics so congregations can gather and stay informed from anywhere.
 
 ## 📚 Documentation
 
@@ -127,9 +127,9 @@ docker compose ps
 ```
 
 This creates a PostgreSQL 16 database with:
-- **User**: `zchurch`
-- **Password**: `zchurch_dev_password`
-- **Database**: `zchurch`
+- **User**: `ceireland`
+- **Password**: `ceireland_dev_password`
+- **Database**: `ceireland`
 - **Port**: `5432`
 
 To stop the database:
@@ -146,7 +146,7 @@ docker compose down -v
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd zchurch
+   cd ceireland
    ```
 2. **Install dependencies**
    ```bash

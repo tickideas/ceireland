@@ -1,18 +1,18 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: zchurch-postgres
+    container_name: ceireland-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: zchurch
-      POSTGRES_PASSWORD: zchurch_dev_password
-      POSTGRES_DB: zchurch
+      POSTGRES_USER: ceireland
+      POSTGRES_PASSWORD: ceireland_dev_password
+      POSTGRES_DB: ceireland
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U zchurch -d zchurch"]
+      test: ["CMD-SHELL", "pg_isready -U ceireland -d ceireland"]
       interval: 5s
       timeout: 5s
       retries: 5

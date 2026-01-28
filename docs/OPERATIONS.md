@@ -1,6 +1,6 @@
-# ZChurch — Operations Runbook
+# Christ Embassy Ireland — Operations Runbook
 
-This guide covers day‑to‑day operations, deployments, incident response, and recovery procedures for ZChurch.
+This guide covers day‑to‑day operations, deployments, incident response, and recovery procedures for Christ Embassy Ireland.
 
 ## Environments & Access
 - Development: PostgreSQL (same schema as production). Quick setup with `npm run db:setup`.
@@ -21,10 +21,11 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
   - Option B – pgBouncer on your server: Expose pooled port (often `6432`) and append `?pgbouncer=true` to the connection string.
 
 2) Prisma schema
-- File: `zchurch/prisma/schema.prisma` (PostgreSQL provider with optional `DIRECT_URL`)
+- File: `ceireland/prisma/schema.prisma` (PostgreSQL provider with optional `DIRECT_URL`)
+- Migrations: `ceireland/prisma/migrations` (if using `prisma migrate`)
 
 3) Configure Vercel Project → Settings → Environment Variables
-- If your Root Directory is NOT set to `zchurch`, set `PRISMA_SCHEMA` = `zchurch/prisma/schema.prisma` to ensure @prisma/client builds against the right schema.
+- If your Root Directory is NOT set to `ceireland`, set `PRISMA_SCHEMA` = `ceireland/prisma/schema.prisma` to ensure @prisma/client builds against the right schema.
 - `DATABASE_URL` = your Postgres (or Prisma Accelerate) connection string
   - If using Accelerate: `DIRECT_URL` = direct Postgres connection string
 - `JWT_SECRET` = strong random secret
@@ -34,9 +35,9 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
 
 4) First-time database setup (one-time)
 - From your laptop (or CI), point env to production DB and create the schema:
-  - Fresh DB: `npx prisma db push --schema zchurch/prisma/schema.prisma`
+  - Fresh DB: `npx prisma db push --schema ceireland/prisma/schema.prisma`
   - Prefer migrations later; for a greenfield deploy, push is fine.
-- Seed sample data (optional): `npm --prefix zchurch run db:seed` (ensure env vars point to prod DB first)
+- Seed sample data (optional): `npm --prefix ceireland run db:seed` (ensure env vars point to prod DB first)
 
 5) Deploy to Vercel
 - Import the repo, framework preset: Next.js (defaults are fine).
@@ -46,7 +47,7 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
 6) Ongoing schema changes (after initial deploy)
 - Recommended: migrate with Postgres migrations. Two easy paths:
   - Generate and deploy migrations via a staging Postgres: develop with Postgres locally or a staging DB, `prisma migrate dev`, commit migrations, and run `prisma migrate deploy` against production.
-  - If changes are small and downtime is acceptable: `prisma db push --schema zchurch/prisma/schema.prisma` (no history; use carefully in prod).
+  - If changes are small and downtime is acceptable: `prisma db push --schema ceireland/prisma/schema.prisma` (no history; use carefully in prod).
 
 7) Connection Pooling Notes
 - Prisma Accelerate (recommended for Vercel):
@@ -90,8 +91,8 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
   - SQLite (legacy dev): if you used the earlier SQLite dev setup, replace the `prisma/dev.db` file with a backup copy. Current default is PostgreSQL for all environments.
 - Restore:
   - PostgreSQL (into a fresh database):
-    - Create target DB: `createdb zchurch_restore`
-    - Restore dump: `pg_restore -d zchurch_restore backup_YYYY-MM-DD.dump`
+    - Create target DB: `createdb ceireland_restore`
+    - Restore dump: `pg_restore -d ceireland_restore backup_YYYY-MM-DD.dump`
     - Point `DATABASE_URL` at the restored DB; redeploy. Validate before switching traffic.
   - SQLite (dev): Replace the `prisma/dev.db` file with a backup copy.
 

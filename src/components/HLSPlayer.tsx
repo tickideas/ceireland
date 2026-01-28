@@ -76,10 +76,10 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       if (isDev) {
         const errorCodeMeaning =
           errorCode === 1 ? 'aborted'
-          : errorCode === 2 ? 'network'
-          : errorCode === 3 ? 'decode'
-          : errorCode === 4 ? 'src_not_supported'
-          : null
+            : errorCode === 2 ? 'network'
+              : errorCode === 3 ? 'decode'
+                : errorCode === 4 ? 'src_not_supported'
+                  : null
 
         console.error('[HLSPlayer] Video error event', {
           mediaErrorCode: errorCode,
@@ -95,7 +95,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     }
     const emitResize = () => {
       if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('zchurch-player-resize'))
+        window.dispatchEvent(new Event('ceireland-player-resize'))
       }
     }
     const handleLoadedMetadata = () => { if (isDev) console.log('[HLSPlayer] Video loadedmetadata'); emitResize() }
@@ -152,14 +152,14 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   useEffect(() => {
     const sendHeartbeat = async () => {
       if (!sessionIdRef.current) return
-      
+
       try {
         const response = await fetch('/api/viewers/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ sessionId: sessionIdRef.current }),
         })
-        
+
         if (response.ok) {
           const data = await response.json()
           setViewerCount(data.viewerCount)
@@ -444,7 +444,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
           </div>
         </div>
       )}
-      
+
       <video
         ref={videoRef}
         className={`w-full h-full ${!isActive && !loading ? 'hidden' : ''}`}

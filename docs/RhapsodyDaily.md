@@ -129,7 +129,7 @@ Technique:
 
 - A `ResizeObserver` measures the left card (video) and sets the same height on the right card (Rhapsody).
 - The Rhapsody card uses `overflow-y-auto` so content scrolls inside the card, keeping heights aligned.
-- The player emits a custom `zchurch-player-resize` event on video load states to trigger a remeasure when the aspect ratio settles.
+- The player emits a custom `ceireland-player-resize` event on video load states to trigger a remeasure when the aspect ratio settles.
 
 Tailwind classes used:
 

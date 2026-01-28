@@ -1,4 +1,4 @@
-# ZChurch — Product Overview
+# Christ Embassy Ireland — Product Overview
 
 ## Summary
 Church App is a modern online church platform that lets congregants register and attend services online while giving administrators robust tools to manage users, stream services via HLS, publish announcements, and view attendance analytics. It is built with Next.js, Prisma, and a simple passwordless sign-in flow.

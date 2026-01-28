@@ -1,8 +1,7 @@
+# AGENTS.md — Coding Guidelines
 
-This document guides human and AI coding assistants when making changes to the Church app. Favor small, focused PRs; keep functionality intact unless explicitly changing behavior.
-This document guides AI coding assistants when making changes to the zchurch app.
+This document guides AI coding assistants when making changes to the Christ Embassy Ireland app.
 ## Quick Context
----
 ## Local Dev
 ## Project Snapshot
 ## Project Structure
