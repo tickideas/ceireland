@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
 
   // Allow cross-origin requests from development IP
   allowedDevOrigins: ["172.19.2.171"],
