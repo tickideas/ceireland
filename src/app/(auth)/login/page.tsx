@@ -2,6 +2,8 @@ import { Suspense } from 'react'
 import { prisma } from '@/lib/prisma'
 import LoginPageContent from './LoginPageContent'
 
+export const dynamic = 'force-dynamic'
+
 async function getServiceSettings() {
   try {
     const settings = await prisma.serviceSettings.findFirst()
