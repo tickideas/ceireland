@@ -9,8 +9,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY prisma ./prisma/
+COPY prisma.config.ts ./
 
-RUN npm ci --ignore-scripts
+RUN npm ci
 
 # Rebuild the source code only when needed
 FROM base AS builder
