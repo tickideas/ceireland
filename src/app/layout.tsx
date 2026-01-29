@@ -1,10 +1,19 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DM_Serif_Display, DM_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { getServiceSettingsCached } from "@/lib/serviceSettings";
 import type { TwitterCardType } from "@/types";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  viewportFit: 'cover',
+  themeColor: '#1e40af',
+};
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

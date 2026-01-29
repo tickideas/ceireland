@@ -48,19 +48,19 @@ function Modal({ isOpen, onClose, children, title }: ModalProps) {
   if (!isOpen) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+      <div className="relative bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-gray-100">
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900 pr-2">{title}</h2>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+            className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0"
           >
             <X size={20} />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">{children}</div>
+        <div className="p-4 sm:p-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   )
@@ -201,38 +201,38 @@ export default function CTAButtons() {
 
   return (
     <>
-      <div className="flex justify-center mt-4 px-2 lg:px-0">
-        <div className="flex flex-wrap justify-center gap-3 w-full lg:w-[85%]">
+      <div className="flex justify-center mt-3 sm:mt-4 px-1 sm:px-2 lg:px-0">
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-3 w-full lg:w-[85%]">
           {showGiving && (
             <button
               onClick={handleGivingClick}
-              className="flex-1 min-w-[140px] max-w-[280px] flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full font-medium shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+              className="flex-1 min-w-[110px] sm:min-w-[140px] max-w-[200px] sm:max-w-[280px] flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 text-white rounded-full text-xs sm:text-sm font-medium shadow-lg hover:shadow-xl active:scale-[0.98] sm:hover:scale-[1.02] transition-all duration-200"
               style={{ background: `linear-gradient(to right, ${settings.givingColorFrom}, ${settings.givingColorTo})` }}
             >
-              <Heart size={18} />
-              {settings.givingButtonLabel}
+              <Heart size={16} className="flex-shrink-0 sm:w-[18px] sm:h-[18px]" />
+              <span className="truncate">{settings.givingButtonLabel}</span>
             </button>
           )}
 
           {showPrayer && (
             <button
               onClick={handlePrayerModalOpen}
-              className="flex-1 min-w-[140px] max-w-[280px] flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full font-medium shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+              className="flex-1 min-w-[110px] sm:min-w-[140px] max-w-[200px] sm:max-w-[280px] flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 text-white rounded-full text-xs sm:text-sm font-medium shadow-lg hover:shadow-xl active:scale-[0.98] sm:hover:scale-[1.02] transition-all duration-200"
               style={{ background: `linear-gradient(to right, ${settings.prayerColorFrom}, ${settings.prayerColorTo})` }}
             >
-              <HandHeart size={18} />
-              {settings.prayerButtonLabel}
+              <HandHeart size={16} className="flex-shrink-0 sm:w-[18px] sm:h-[18px]" />
+              <span className="truncate">{settings.prayerButtonLabel}</span>
             </button>
           )}
 
           {showSalvation && (
             <button
               onClick={handleSalvationModalOpen}
-              className="flex-1 min-w-[140px] max-w-[280px] flex items-center justify-center gap-2 px-5 py-3 text-white rounded-full font-medium shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200"
+              className="flex-1 min-w-[110px] sm:min-w-[140px] max-w-[200px] sm:max-w-[280px] flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-5 py-2 sm:py-3 text-white rounded-full text-xs sm:text-sm font-medium shadow-lg hover:shadow-xl active:scale-[0.98] sm:hover:scale-[1.02] transition-all duration-200"
               style={{ background: `linear-gradient(to right, ${settings.salvationColorFrom}, ${settings.salvationColorTo})` }}
             >
-              <Cross size={18} />
-              {settings.salvationButtonLabel}
+              <Cross size={16} className="flex-shrink-0 sm:w-[18px] sm:h-[18px]" />
+              <span className="truncate">{settings.salvationButtonLabel}</span>
             </button>
           )}
         </div>

@@ -118,8 +118,8 @@ export default function BannerCarousel({ banners, priorityFirst = false }: Banne
         )}
         
         {/* Banner Title */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-          <h3 className="text-white text-lg font-semibold">
+        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 sm:p-4">
+          <h3 className="text-white text-sm sm:text-lg font-semibold line-clamp-2">
             {currentBanner.title}
           </h3>
         </div>
@@ -127,12 +127,12 @@ export default function BannerCarousel({ banners, priorityFirst = false }: Banne
 
       {/* Navigation Dots */}
       {activeBanners.length > 1 && (
-        <div className="flex justify-center mt-4 space-x-2">
+        <div className="flex justify-center mt-3 sm:mt-4 gap-2 sm:gap-2">
           {activeBanners.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
-              className={`w-3 h-3 rounded-full transition-colors ${
+              className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-colors touch-manipulation ${
                 index === currentIndex ? 'bg-blue-700' : 'bg-gray-300 hover:bg-gray-400'
               }`}
               aria-label={`Go to slide ${index + 1}`}
@@ -146,19 +146,19 @@ export default function BannerCarousel({ banners, priorityFirst = false }: Banne
         <>
           <button
             onClick={() => setCurrentIndex(prev => prev === 0 ? activeBanners.length - 1 : prev - 1)}
-            className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full p-2 transition-all"
+            className="absolute left-1 sm:left-2 top-1/2 transform -translate-y-1/2 bg-white/60 hover:bg-white/80 active:bg-white/90 rounded-full p-1.5 sm:p-2 transition-all touch-manipulation"
             aria-label="Previous banner"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <button
             onClick={() => setCurrentIndex(prev => prev === activeBanners.length - 1 ? 0 : prev + 1)}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-50 hover:bg-opacity-75 rounded-full p-2 transition-all"
+            className="absolute right-1 sm:right-2 top-1/2 transform -translate-y-1/2 bg-white/60 hover:bg-white/80 active:bg-white/90 rounded-full p-1.5 sm:p-2 transition-all touch-manipulation"
             aria-label="Next banner"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
           </button>
