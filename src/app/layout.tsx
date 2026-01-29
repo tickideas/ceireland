@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DM_Serif_Display, DM_Sans } from "next/font/google";
+import { unstable_cache } from "next/cache";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { prisma } from "@/lib/prisma";
+import type { TwitterCardType } from "@/types";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,15 +28,25 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
 });
 
+// Cache SEO settings for 5 minutes to reduce database queries
+const getSEOSettings = unstable_cache(
+  async () => {
+    const settings = await prisma.serviceSettings.findFirst()
+    return settings
+  },
+  ['seo-settings'],
+  { revalidate: 300, tags: ['seo-settings'] }
+)
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const settings = await prisma.serviceSettings.findFirst()
+    const settings = await getSEOSettings()
     const appName = settings?.appName ?? 'Church App'
     const title = settings?.seoTitle || `${appName} - Online Church Platform`
     const description = settings?.seoDescription || 'A modern online church platform with live streaming, user management, and analytics.'
     const siteName = settings?.seoSiteName || appName
     const image = settings?.seoImage
-    const twitterCard = (settings?.twitterCardType as 'summary' | 'summary_large_image') || 'summary_large_image'
+    const twitterCard: TwitterCardType = settings?.twitterCardType === 'summary' ? 'summary' : 'summary_large_image'
 
     return {
       title,

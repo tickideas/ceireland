@@ -234,6 +234,22 @@ export interface ServiceSettingsFormData {
   authWelcomeHeading: string
   authTagline: string
   authFooterText: string
+  seoTitle: string
+  seoDescription: string
+  seoImage: string
+  seoSiteName: string
+  twitterCardType: TwitterCardType
+}
+
+// SEO Types
+export type TwitterCardType = 'summary' | 'summary_large_image'
+
+export interface SEOSettings {
+  seoTitle: string | null
+  seoDescription: string | null
+  seoImage: string | null
+  seoSiteName: string | null
+  twitterCardType: TwitterCardType
 }
 
 // Utility types

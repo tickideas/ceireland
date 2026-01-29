@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Settings, Image, Loader2, Check, Share2 } from 'lucide-react'
 
 interface ServiceSettings {
@@ -39,11 +39,7 @@ export default function ServiceSettingsManagement() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  useEffect(() => {
-    fetchSettings()
-  }, [])
-
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/service-settings')
       if (res.ok) {
@@ -55,9 +51,13 @@ export default function ServiceSettingsManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setSaved(false)
@@ -78,7 +78,7 @@ export default function ServiceSettingsManagement() {
     } finally {
       setSaving(false)
     }
-  }
+  }, [settings])
 
   if (loading) {
     return (
@@ -247,13 +247,19 @@ export default function ServiceSettingsManagement() {
         <div className="p-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">SEO Title</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="block text-sm font-medium text-slate-700">SEO Title</label>
+                <span className={`text-xs ${(settings.seoTitle?.length || 0) > 60 ? 'text-red-500' : 'text-slate-400'}`}>
+                  {settings.seoTitle?.length || 0}/60
+                </span>
+              </div>
               <input
                 type="text"
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
                 value={settings.seoTitle || ''}
                 onChange={(e) => setSettings({ ...settings, seoTitle: e.target.value })}
                 placeholder="Christ Embassy Ireland - Online Church"
+                maxLength={60}
               />
               <p className="text-xs text-slate-500 mt-1">Title shown in social previews and search results</p>
             </div>
@@ -265,18 +271,25 @@ export default function ServiceSettingsManagement() {
                 value={settings.seoSiteName || ''}
                 onChange={(e) => setSettings({ ...settings, seoSiteName: e.target.value })}
                 placeholder="Christ Embassy Ireland"
+                maxLength={100}
               />
               <p className="text-xs text-slate-500 mt-1">Your organization/site name for Open Graph</p>
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">SEO Description</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-sm font-medium text-slate-700">SEO Description</label>
+              <span className={`text-xs ${(settings.seoDescription?.length || 0) > 160 ? 'text-red-500' : 'text-slate-400'}`}>
+                {settings.seoDescription?.length || 0}/160
+              </span>
+            </div>
             <textarea
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors resize-none"
               rows={3}
               value={settings.seoDescription || ''}
               onChange={(e) => setSettings({ ...settings, seoDescription: e.target.value })}
               placeholder="Join our online church community. Watch live services, read daily devotionals, and connect with fellow believers."
+              maxLength={160}
             />
             <p className="text-xs text-slate-500 mt-1">Description shown in social previews (recommended: 150-160 characters)</p>
           </div>

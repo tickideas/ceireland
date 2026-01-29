@@ -1,38 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import type { TwitterCardType } from '@/types'
+
+// Validation schema for service settings
+const serviceSettingsSchema = z.object({
+  appName: z.string().min(1).max(100).optional(),
+  headerTitle: z.string().min(1).max(100).optional(),
+  sundayLabel: z.string().min(1).max(50).optional(),
+  sundayTime: z.string().min(1).max(50).optional(),
+  wednesdayLabel: z.string().min(1).max(50).optional(),
+  wednesdayTime: z.string().min(1).max(50).optional(),
+  prayerLabel: z.string().min(1).max(50).optional(),
+  prayerTime: z.string().min(1).max(50).optional(),
+  authBackgroundUrl: z.string().url().max(500).optional().nullable(),
+  authLogoUrl: z.string().url().max(500).optional().nullable(),
+  authWelcomeHeading: z.string().min(1).max(100).optional(),
+  authTagline: z.string().min(1).max(200).optional(),
+  authFooterText: z.string().min(1).max(100).optional(),
+  seoTitle: z.string().max(60).optional().nullable(),
+  seoDescription: z.string().max(160).optional().nullable(),
+  seoImage: z.string().url().max(500).optional().nullable(),
+  seoSiteName: z.string().max(100).optional().nullable(),
+  twitterCardType: z.enum(['summary', 'summary_large_image']).optional(),
+})
+
+// Default settings for fallback
+const DEFAULT_SETTINGS = {
+  appName: 'Church App',
+  headerTitle: 'Church Service',
+  sundayLabel: 'Sunday',
+  sundayTime: '10:00 AM',
+  wednesdayLabel: 'Wednesday',
+  wednesdayTime: '7:00 PM',
+  prayerLabel: 'Prayer',
+  prayerTime: 'Daily 6:00 AM',
+  authBackgroundUrl: '',
+  authLogoUrl: '',
+  authWelcomeHeading: 'your community',
+  authTagline: 'Connect, worship, and grow together.',
+  authFooterText: 'Faith · Community · Purpose',
+  seoTitle: '',
+  seoDescription: '',
+  seoImage: '',
+  seoSiteName: '',
+  twitterCardType: 'summary_large_image' as TwitterCardType,
+}
+
+// Helper to require admin authentication
+async function requireAdmin(request: NextRequest) {
+  const token = request.cookies.get('auth-token')?.value
+  if (!token) {
+    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
+  }
+  const payload = verifyToken(token)
+  if (!payload || payload.role !== 'ADMIN') {
+    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
+  }
+  return { payload }
+}
 
 // Admin endpoints to read and update the dashboard header + service info
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const auth = await requireAdmin(request)
+    if ('error' in auth) return auth.error
 
     const settings = await prisma.serviceSettings.findFirst()
     return NextResponse.json({
-      appName: settings?.appName ?? 'Church App',
-      headerTitle: settings?.headerTitle ?? 'Church Service',
-      sundayLabel: settings?.sundayLabel ?? 'Sunday',
-      sundayTime: settings?.sundayTime ?? '10:00 AM',
-      wednesdayLabel: settings?.wednesdayLabel ?? 'Wednesday',
-      wednesdayTime: settings?.wednesdayTime ?? '7:00 PM',
-      prayerLabel: settings?.prayerLabel ?? 'Prayer',
-      prayerTime: settings?.prayerTime ?? 'Daily 6:00 AM',
-      authBackgroundUrl: settings?.authBackgroundUrl ?? '',
-      authLogoUrl: settings?.authLogoUrl ?? '',
-      authWelcomeHeading: settings?.authWelcomeHeading ?? 'your community',
-      authTagline: settings?.authTagline ?? 'Connect, worship, and grow together.',
-      authFooterText: settings?.authFooterText ?? 'Faith · Community · Purpose',
-      seoTitle: settings?.seoTitle ?? '',
-      seoDescription: settings?.seoDescription ?? '',
-      seoImage: settings?.seoImage ?? '',
-      seoSiteName: settings?.seoSiteName ?? '',
-      twitterCardType: settings?.twitterCardType ?? 'summary_large_image'
+      appName: settings?.appName ?? DEFAULT_SETTINGS.appName,
+      headerTitle: settings?.headerTitle ?? DEFAULT_SETTINGS.headerTitle,
+      sundayLabel: settings?.sundayLabel ?? DEFAULT_SETTINGS.sundayLabel,
+      sundayTime: settings?.sundayTime ?? DEFAULT_SETTINGS.sundayTime,
+      wednesdayLabel: settings?.wednesdayLabel ?? DEFAULT_SETTINGS.wednesdayLabel,
+      wednesdayTime: settings?.wednesdayTime ?? DEFAULT_SETTINGS.wednesdayTime,
+      prayerLabel: settings?.prayerLabel ?? DEFAULT_SETTINGS.prayerLabel,
+      prayerTime: settings?.prayerTime ?? DEFAULT_SETTINGS.prayerTime,
+      authBackgroundUrl: settings?.authBackgroundUrl ?? DEFAULT_SETTINGS.authBackgroundUrl,
+      authLogoUrl: settings?.authLogoUrl ?? DEFAULT_SETTINGS.authLogoUrl,
+      authWelcomeHeading: settings?.authWelcomeHeading ?? DEFAULT_SETTINGS.authWelcomeHeading,
+      authTagline: settings?.authTagline ?? DEFAULT_SETTINGS.authTagline,
+      authFooterText: settings?.authFooterText ?? DEFAULT_SETTINGS.authFooterText,
+      seoTitle: settings?.seoTitle ?? DEFAULT_SETTINGS.seoTitle,
+      seoDescription: settings?.seoDescription ?? DEFAULT_SETTINGS.seoDescription,
+      seoImage: settings?.seoImage ?? DEFAULT_SETTINGS.seoImage,
+      seoSiteName: settings?.seoSiteName ?? DEFAULT_SETTINGS.seoSiteName,
+      twitterCardType: settings?.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
     })
   } catch (error) {
     console.error('Get service settings error:', error)
@@ -42,35 +97,42 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
+    const auth = await requireAdmin(request)
+    if ('error' in auth) return auth.error
 
     const body = await request.json()
     
+    // Validate input
+    const validationResult = serviceSettingsSchema.safeParse(body)
+    if (!validationResult.success) {
+      return NextResponse.json(
+        { error: 'Invalid input', details: validationResult.error.flatten() },
+        { status: 400 }
+      )
+    }
+
+    const validatedData = validationResult.data
+    
     // Build update data object with only defined values
     const updateData: Record<string, string | null> = {}
-    if (body.appName !== undefined) updateData.appName = body.appName
-    if (body.headerTitle !== undefined) updateData.headerTitle = body.headerTitle
-    if (body.sundayLabel !== undefined) updateData.sundayLabel = body.sundayLabel
-    if (body.sundayTime !== undefined) updateData.sundayTime = body.sundayTime
-    if (body.wednesdayLabel !== undefined) updateData.wednesdayLabel = body.wednesdayLabel
-    if (body.wednesdayTime !== undefined) updateData.wednesdayTime = body.wednesdayTime
-    if (body.prayerLabel !== undefined) updateData.prayerLabel = body.prayerLabel
-    if (body.prayerTime !== undefined) updateData.prayerTime = body.prayerTime
-    if (body.authBackgroundUrl !== undefined) updateData.authBackgroundUrl = body.authBackgroundUrl
-    if (body.authLogoUrl !== undefined) updateData.authLogoUrl = body.authLogoUrl
-    if (body.authWelcomeHeading !== undefined) updateData.authWelcomeHeading = body.authWelcomeHeading
-    if (body.authTagline !== undefined) updateData.authTagline = body.authTagline
-    if (body.authFooterText !== undefined) updateData.authFooterText = body.authFooterText
-    if (body.seoTitle !== undefined) updateData.seoTitle = body.seoTitle
-    if (body.seoDescription !== undefined) updateData.seoDescription = body.seoDescription
-    if (body.seoImage !== undefined) updateData.seoImage = body.seoImage
-    if (body.seoSiteName !== undefined) updateData.seoSiteName = body.seoSiteName
-    if (body.twitterCardType !== undefined) updateData.twitterCardType = body.twitterCardType
+    if (validatedData.appName !== undefined) updateData.appName = validatedData.appName
+    if (validatedData.headerTitle !== undefined) updateData.headerTitle = validatedData.headerTitle
+    if (validatedData.sundayLabel !== undefined) updateData.sundayLabel = validatedData.sundayLabel
+    if (validatedData.sundayTime !== undefined) updateData.sundayTime = validatedData.sundayTime
+    if (validatedData.wednesdayLabel !== undefined) updateData.wednesdayLabel = validatedData.wednesdayLabel
+    if (validatedData.wednesdayTime !== undefined) updateData.wednesdayTime = validatedData.wednesdayTime
+    if (validatedData.prayerLabel !== undefined) updateData.prayerLabel = validatedData.prayerLabel
+    if (validatedData.prayerTime !== undefined) updateData.prayerTime = validatedData.prayerTime
+    if (validatedData.authBackgroundUrl !== undefined) updateData.authBackgroundUrl = validatedData.authBackgroundUrl
+    if (validatedData.authLogoUrl !== undefined) updateData.authLogoUrl = validatedData.authLogoUrl
+    if (validatedData.authWelcomeHeading !== undefined) updateData.authWelcomeHeading = validatedData.authWelcomeHeading
+    if (validatedData.authTagline !== undefined) updateData.authTagline = validatedData.authTagline
+    if (validatedData.authFooterText !== undefined) updateData.authFooterText = validatedData.authFooterText
+    if (validatedData.seoTitle !== undefined) updateData.seoTitle = validatedData.seoTitle
+    if (validatedData.seoDescription !== undefined) updateData.seoDescription = validatedData.seoDescription
+    if (validatedData.seoImage !== undefined) updateData.seoImage = validatedData.seoImage
+    if (validatedData.seoSiteName !== undefined) updateData.seoSiteName = validatedData.seoSiteName
+    if (validatedData.twitterCardType !== undefined) updateData.twitterCardType = validatedData.twitterCardType
 
     // Find existing settings or create
     const existing = await prisma.serviceSettings.findFirst()
@@ -83,24 +145,24 @@ export async function PUT(request: NextRequest) {
     } else {
       saved = await prisma.serviceSettings.create({
         data: {
-          appName: body.appName ?? 'Church App',
-          headerTitle: body.headerTitle ?? 'Church Service',
-          sundayLabel: body.sundayLabel ?? 'Sunday',
-          sundayTime: body.sundayTime ?? '10:00 AM',
-          wednesdayLabel: body.wednesdayLabel ?? 'Wednesday',
-          wednesdayTime: body.wednesdayTime ?? '7:00 PM',
-          prayerLabel: body.prayerLabel ?? 'Prayer',
-          prayerTime: body.prayerTime ?? 'Daily 6:00 AM',
-          authBackgroundUrl: body.authBackgroundUrl ?? null,
-          authLogoUrl: body.authLogoUrl ?? null,
-          authWelcomeHeading: body.authWelcomeHeading ?? 'your community',
-          authTagline: body.authTagline ?? 'Connect, worship, and grow together.',
-          authFooterText: body.authFooterText ?? 'Faith · Community · Purpose',
-          seoTitle: body.seoTitle ?? null,
-          seoDescription: body.seoDescription ?? null,
-          seoImage: body.seoImage ?? null,
-          seoSiteName: body.seoSiteName ?? null,
-          twitterCardType: body.twitterCardType ?? 'summary_large_image',
+          appName: validatedData.appName ?? DEFAULT_SETTINGS.appName,
+          headerTitle: validatedData.headerTitle ?? DEFAULT_SETTINGS.headerTitle,
+          sundayLabel: validatedData.sundayLabel ?? DEFAULT_SETTINGS.sundayLabel,
+          sundayTime: validatedData.sundayTime ?? DEFAULT_SETTINGS.sundayTime,
+          wednesdayLabel: validatedData.wednesdayLabel ?? DEFAULT_SETTINGS.wednesdayLabel,
+          wednesdayTime: validatedData.wednesdayTime ?? DEFAULT_SETTINGS.wednesdayTime,
+          prayerLabel: validatedData.prayerLabel ?? DEFAULT_SETTINGS.prayerLabel,
+          prayerTime: validatedData.prayerTime ?? DEFAULT_SETTINGS.prayerTime,
+          authBackgroundUrl: validatedData.authBackgroundUrl ?? null,
+          authLogoUrl: validatedData.authLogoUrl ?? null,
+          authWelcomeHeading: validatedData.authWelcomeHeading ?? DEFAULT_SETTINGS.authWelcomeHeading,
+          authTagline: validatedData.authTagline ?? DEFAULT_SETTINGS.authTagline,
+          authFooterText: validatedData.authFooterText ?? DEFAULT_SETTINGS.authFooterText,
+          seoTitle: validatedData.seoTitle ?? null,
+          seoDescription: validatedData.seoDescription ?? null,
+          seoImage: validatedData.seoImage ?? null,
+          seoSiteName: validatedData.seoSiteName ?? null,
+          twitterCardType: validatedData.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
         }
       })
     }
