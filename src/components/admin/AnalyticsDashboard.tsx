@@ -204,7 +204,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
         <StatCard
           title="Total Members"
           value={analytics.totalUsers}
@@ -232,105 +232,111 @@ export default function AnalyticsDashboard() {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         <ChartCard title="Daily Attendance">
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.serviceData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="date" tickFormatter={formatIsoToDMY} tick={{ fontSize: 12, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
-              <Tooltip
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                labelFormatter={(value) => {
-                  const item = analytics.serviceData.find(d => d.date === value)
-                  return item ? `${formatIsoToDMY(value)} (${item.dayName})` : formatIsoToDMY(value)
-                }}
-              />
-              <Bar dataKey="attendance" fill="#6366f1" name="Attendance" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="h-[250px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={analytics.serviceData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" tickFormatter={formatIsoToDMY} tick={{ fontSize: 12, fill: '#64748b' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
+                <Tooltip
+                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                  labelFormatter={(value) => {
+                    const item = analytics.serviceData.find(d => d.date === value)
+                    return item ? `${formatIsoToDMY(value)} (${item.dayName})` : formatIsoToDMY(value)
+                  }}
+                />
+                <Bar dataKey="attendance" fill="#6366f1" name="Attendance" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </ChartCard>
 
         <ChartCard title={`Attendance Trend (${granularity})`}>
           {seriesLoading ? (
-            <div className="h-[300px] flex items-center justify-center">
+            <div className="h-[250px] sm:h-[300px] flex items-center justify-center">
               <div className="w-8 h-8 border-4 border-blue-200 rounded-full animate-spin border-t-blue-600" />
             </div>
           ) : (
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
-                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-                <Area
-                  type="monotone"
-                  dataKey="attendanceCount"
-                  name="Attendance"
-                  stroke="#6366f1"
-                  strokeWidth={2}
-                  fill="url(#attendanceGradient)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="h-[250px] sm:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
+                  <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                  <Area
+                    type="monotone"
+                    dataKey="attendanceCount"
+                    name="Attendance"
+                    stroke="#6366f1"
+                    strokeWidth={2}
+                    fill="url(#attendanceGradient)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </ChartCard>
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         <ChartCard title="Member Distribution">
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={analytics.roleDistribution}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={100}
-                paddingAngle={4}
-                dataKey="value"
-              >
-                {analytics.roleDistribution.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <div className="h-[250px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={analytics.roleDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+                  {analytics.roleDistribution.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
         </ChartCard>
 
         <ChartCard title="Attendance Summary">
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4">
-                <p className="text-sm text-slate-500 mb-1">This Week</p>
-                <p className="text-2xl font-bold text-slate-900">{analytics.weekAttendance}</p>
+          <div className="space-y-4 sm:space-y-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-slate-500 mb-1">This Week</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900">{analytics.weekAttendance}</p>
               </div>
-              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-4">
-                <p className="text-sm text-slate-500 mb-1">This Month</p>
-                <p className="text-2xl font-bold text-slate-900">{analytics.monthAttendance}</p>
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl p-3 sm:p-4">
+                <p className="text-xs sm:text-sm text-slate-500 mb-1">This Month</p>
+                <p className="text-xl sm:text-2xl font-bold text-slate-900">{analytics.monthAttendance}</p>
               </div>
             </div>
-            <div className="border-t border-slate-100 pt-4 space-y-3">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-xl">
-                <span className="text-sm font-medium text-blue-900">Avg Daily Attendance</span>
-                <span className="text-lg font-bold text-blue-600">{avgDailyAttendance}</span>
+            <div className="border-t border-slate-100 pt-3 sm:pt-4 space-y-2 sm:space-y-3">
+              <div className="flex items-center justify-between p-2.5 sm:p-3 bg-blue-50 rounded-xl">
+                <span className="text-xs sm:text-sm font-medium text-blue-900">Avg Daily Attendance</span>
+                <span className="text-base sm:text-lg font-bold text-blue-600">{avgDailyAttendance}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl">
-                <span className="text-sm font-medium text-emerald-900">Total Attendance (Period)</span>
-                <span className="text-lg font-bold text-emerald-600">{totalAttendance}</span>
+              <div className="flex items-center justify-between p-2.5 sm:p-3 bg-emerald-50 rounded-xl">
+                <span className="text-xs sm:text-sm font-medium text-emerald-900">Total Attendance (Period)</span>
+                <span className="text-base sm:text-lg font-bold text-emerald-600">{totalAttendance}</span>
               </div>
-              <div className="flex items-center justify-between p-3 bg-violet-50 rounded-xl">
-                <span className="text-sm font-medium text-violet-900">Days with Activity</span>
-                <span className="text-lg font-bold text-violet-600">{daysWithActivity}</span>
+              <div className="flex items-center justify-between p-2.5 sm:p-3 bg-violet-50 rounded-xl">
+                <span className="text-xs sm:text-sm font-medium text-violet-900">Days with Activity</span>
+                <span className="text-base sm:text-lg font-bold text-violet-600">{daysWithActivity}</span>
               </div>
             </div>
           </div>
@@ -340,23 +346,25 @@ export default function AnalyticsDashboard() {
       {/* Full Width Chart */}
       <ChartCard title={`Complete Data Overview (by ${granularity})`}>
         {seriesLoading ? (
-          <div className="h-[340px] flex items-center justify-center">
+          <div className="h-[280px] sm:h-[340px] flex items-center justify-center">
             <div className="w-8 h-8 border-4 border-blue-200 rounded-full animate-spin border-t-blue-600" />
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={340}>
-            <LineChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} />
-              <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
-              <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
-              <Legend />
-              <Line type="monotone" dataKey="usersCreated" name="Members Created" stroke="#2563eb" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="usersApprovedCreated" name="Approved Members" stroke="#10b981" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="attendanceCount" name="Attendance" stroke="#7c3aed" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="servicesCount" name="Services" stroke="#f43f5e" strokeWidth={2} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          <div className="h-[280px] sm:h-[340px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} />
+                <YAxis tick={{ fontSize: 12, fill: '#64748b' }} />
+                <Tooltip contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }} />
+                <Legend />
+                <Line type="monotone" dataKey="usersCreated" name="Members Created" stroke="#2563eb" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="usersApprovedCreated" name="Approved Members" stroke="#10b981" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="attendanceCount" name="Attendance" stroke="#7c3aed" strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="servicesCount" name="Services" stroke="#f43f5e" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
         )}
       </ChartCard>
     </div>
