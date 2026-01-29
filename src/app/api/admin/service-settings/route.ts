@@ -23,7 +23,11 @@ export async function GET(request: NextRequest) {
       wednesdayTime: settings?.wednesdayTime ?? '7:00 PM',
       prayerLabel: settings?.prayerLabel ?? 'Prayer',
       prayerTime: settings?.prayerTime ?? 'Daily 6:00 AM',
-      authBackgroundUrl: settings?.authBackgroundUrl ?? ''
+      authBackgroundUrl: settings?.authBackgroundUrl ?? '',
+      authLogoUrl: settings?.authLogoUrl ?? '',
+      authWelcomeHeading: settings?.authWelcomeHeading ?? 'your community',
+      authTagline: settings?.authTagline ?? 'Connect, worship, and grow together.',
+      authFooterText: settings?.authFooterText ?? 'Faith · Community · Purpose'
     })
   } catch (error) {
     console.error('Get service settings error:', error)
@@ -53,6 +57,10 @@ export async function PUT(request: NextRequest) {
     if (body.prayerLabel !== undefined) updateData.prayerLabel = body.prayerLabel
     if (body.prayerTime !== undefined) updateData.prayerTime = body.prayerTime
     if (body.authBackgroundUrl !== undefined) updateData.authBackgroundUrl = body.authBackgroundUrl
+    if (body.authLogoUrl !== undefined) updateData.authLogoUrl = body.authLogoUrl
+    if (body.authWelcomeHeading !== undefined) updateData.authWelcomeHeading = body.authWelcomeHeading
+    if (body.authTagline !== undefined) updateData.authTagline = body.authTagline
+    if (body.authFooterText !== undefined) updateData.authFooterText = body.authFooterText
 
     // Find existing settings or create
     const existing = await prisma.serviceSettings.findFirst()
@@ -74,6 +82,10 @@ export async function PUT(request: NextRequest) {
           prayerLabel: body.prayerLabel ?? 'Prayer',
           prayerTime: body.prayerTime ?? 'Daily 6:00 AM',
           authBackgroundUrl: body.authBackgroundUrl ?? null,
+          authLogoUrl: body.authLogoUrl ?? null,
+          authWelcomeHeading: body.authWelcomeHeading ?? 'your community',
+          authTagline: body.authTagline ?? 'Connect, worship, and grow together.',
+          authFooterText: body.authFooterText ?? 'Faith · Community · Purpose',
         }
       })
     }
@@ -89,6 +101,10 @@ export async function PUT(request: NextRequest) {
       prayerLabel: saved.prayerLabel,
       prayerTime: saved.prayerTime,
       authBackgroundUrl: saved.authBackgroundUrl ?? '',
+      authLogoUrl: saved.authLogoUrl ?? '',
+      authWelcomeHeading: saved.authWelcomeHeading ?? 'your community',
+      authTagline: saved.authTagline ?? 'Connect, worship, and grow together.',
+      authFooterText: saved.authFooterText ?? 'Faith · Community · Purpose',
     })
   } catch (error) {
     console.error('Update service settings error:', error)

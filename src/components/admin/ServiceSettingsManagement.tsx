@@ -7,12 +7,20 @@ interface ServiceSettings {
   appName: string
   headerTitle: string
   authBackgroundUrl?: string
+  authLogoUrl?: string
+  authWelcomeHeading?: string
+  authTagline?: string
+  authFooterText?: string
 }
 
 const defaults: ServiceSettings = {
   appName: 'Church App',
   headerTitle: 'Church Service',
-  authBackgroundUrl: ''
+  authBackgroundUrl: '',
+  authLogoUrl: '',
+  authWelcomeHeading: 'your community',
+  authTagline: 'Connect, worship, and grow together.',
+  authFooterText: 'Faith · Community · Purpose'
 }
 
 export default function ServiceSettingsManagement() {
@@ -113,22 +121,86 @@ export default function ServiceSettingsManagement() {
               <p className="text-xs text-slate-500 mt-1">Displayed on the member dashboard</p>
             </div>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Welcome Heading
+            </label>
+            <input
+              type="text"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={settings.authWelcomeHeading || ''}
+              onChange={(e) => setSettings({ ...settings, authWelcomeHeading: e.target.value })}
+              placeholder="your community"
+            />
+            <p className="text-xs text-slate-500 mt-1">Shown on login/register pages as &ldquo;Welcome to <span className="font-medium">{settings.authWelcomeHeading || 'your community'}</span>&rdquo;</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Auth Tagline
+              </label>
+              <input
+                type="text"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                value={settings.authTagline || ''}
+                onChange={(e) => setSettings({ ...settings, authTagline: e.target.value })}
+                placeholder="Connect, worship, and grow together."
+              />
+              <p className="text-xs text-slate-500 mt-1">Subtitle text below the welcome heading</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Auth Footer Text
+              </label>
+              <input
+                type="text"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                value={settings.authFooterText || ''}
+                onChange={(e) => setSettings({ ...settings, authFooterText: e.target.value })}
+                placeholder="Faith · Community · Purpose"
+              />
+              <p className="text-xs text-slate-500 mt-1">Decorative footer text at the bottom of the panel (use · for separators)</p>
+            </div>
+          </div>
         </form>
       </div>
 
-      {/* Auth Background */}
+      {/* Auth Pages Branding */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center space-x-3">
           <div className="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center">
             <Image className="w-5 h-5 text-pink-600" />
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-slate-900">Auth Pages Background</h3>
-            <p className="text-sm text-slate-500">Background image for login and registration pages</p>
+            <h3 className="text-lg font-semibold text-slate-900">Auth Pages Branding</h3>
+            <p className="text-sm text-slate-500">Logo and background image for login and registration pages</p>
           </div>
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-6">
           <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Logo Image URL</label>
+            <input
+              type="url"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={settings.authLogoUrl || ''}
+              onChange={(e) => setSettings({ ...settings, authLogoUrl: e.target.value })}
+              placeholder="https://example.com/logo.png"
+            />
+            <p className="text-xs text-slate-500 mt-1">Replaces the default cross icon on login/register pages</p>
+          </div>
+          {settings.authLogoUrl && (
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center bg-slate-50">
+                <img
+                  src={settings.authLogoUrl}
+                  alt="Logo preview"
+                  className="w-full h-full object-contain"
+                />
+              </div>
+              <span className="text-sm text-slate-500">Logo preview</span>
+            </div>
+          )}
+          <div className="border-t border-slate-100 pt-6">
             <label className="block text-sm font-medium text-slate-700 mb-1.5">Background Image URL</label>
             <input
               type="url"
@@ -137,12 +209,13 @@ export default function ServiceSettingsManagement() {
               onChange={(e) => setSettings({ ...settings, authBackgroundUrl: e.target.value })}
               placeholder="https://example.com/background.jpg"
             />
+            <p className="text-xs text-slate-500 mt-1">Background for the left panel on desktop, full background on mobile</p>
           </div>
           {settings.authBackgroundUrl && (
             <div className="rounded-xl border border-slate-200 overflow-hidden">
-              <img 
-                src={settings.authBackgroundUrl} 
-                alt="Background preview" 
+              <img
+                src={settings.authBackgroundUrl}
+                alt="Background preview"
                 className="w-full h-48 object-cover"
               />
             </div>

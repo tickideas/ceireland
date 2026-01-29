@@ -107,8 +107,12 @@ model ServiceSettings {
   wednesdayTime     String   @default("7:00 PM")
   prayerLabel       String   @default("Prayer")
   prayerTime        String   @default("Daily 6:00 AM")
-  authBackgroundUrl String?
-  createdAt         DateTime @default(now())
+  authBackgroundUrl    String?
+  authLogoUrl          String?
+  authWelcomeHeading   String   @default("your community")
+  authTagline          String   @default("Connect, worship, and grow together.")
+  authFooterText       String   @default("Faith · Community · Purpose")
+  createdAt            DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
   @@map("service_settings")

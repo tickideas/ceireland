@@ -93,6 +93,10 @@ export interface ServiceSettings {
   prayerLabel: string
   prayerTime: string
   authBackgroundUrl: string | null
+  authLogoUrl: string | null
+  authWelcomeHeading: string
+  authTagline: string
+  authFooterText: string
   createdAt: Date
   updatedAt: Date
 }
@@ -226,6 +230,10 @@ export interface ServiceSettingsFormData {
   prayerLabel: string
   prayerTime: string
   authBackgroundUrl: string
+  authLogoUrl: string
+  authWelcomeHeading: string
+  authTagline: string
+  authFooterText: string
 }
 
 // Utility types

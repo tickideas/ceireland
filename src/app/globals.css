@@ -5,6 +5,16 @@
   --foreground: #171717;
   /* Ensure UA widgets (inputs, scrollbars) use light appearance */
   color-scheme: light;
+
+  /* Auth page design tokens */
+  --auth-navy: #0c1929;
+  --auth-navy-light: #162a46;
+  --auth-blue: #1e3a5f;
+  --auth-gold: #c9a84c;
+  --auth-gold-light: #dfc06e;
+  --auth-gold-muted: #b8943f;
+  --auth-cream: #faf8f4;
+  --auth-slate: #64748b;
 }
 
 @theme inline {
@@ -20,4 +30,102 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* === Auth page animations === */
+
+@keyframes auth-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes auth-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes auth-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes auth-glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes auth-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.auth-animate-fade-up {
+  animation: auth-fade-up 0.6s ease-out both;
+}
+
+.auth-animate-fade-in {
+  animation: auth-fade-in 0.8s ease-out both;
+}
+
+.auth-animate-scale-in {
+  animation: auth-scale-in 0.5s ease-out both;
+}
+
+.auth-animate-float {
+  animation: auth-float 6s ease-in-out infinite;
+}
+
+.auth-stagger-1 { animation-delay: 0.1s; }
+.auth-stagger-2 { animation-delay: 0.2s; }
+.auth-stagger-3 { animation-delay: 0.3s; }
+.auth-stagger-4 { animation-delay: 0.4s; }
+.auth-stagger-5 { animation-delay: 0.5s; }
+.auth-stagger-6 { animation-delay: 0.6s; }
+
+/* Shimmer effect for the gold accent line */
+.auth-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--auth-gold-muted) 0%,
+    var(--auth-gold-light) 50%,
+    var(--auth-gold-muted) 100%
+  );
+  background-size: 200% 100%;
+  animation: auth-shimmer 3s ease-in-out infinite;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .auth-animate-fade-up,
+  .auth-animate-fade-in,
+  .auth-animate-scale-in {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .auth-animate-float {
+    animation: none;
+  }
+
+  .auth-shimmer {
+    animation: none;
+  }
 }
