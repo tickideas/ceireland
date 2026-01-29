@@ -72,38 +72,30 @@ export async function GET(request: NextRequest) {
       prisma.service.findMany({
         where: { date: { gte: rangeStart, lte: rangeEnd } },
         orderBy: { date: 'asc' },
-        include: { _count: { select: { attendance: true } } },
+        select: {
+          date: true,
+          _count: { select: { attendance: true } },
+        },
       }),
     ])
 
     // Pre-build daily buckets for the range
     const dailyBuckets: Record<string, { date: string; attendance: number; dayName: string }> = {}
-    {
-      const d = new Date(rangeStart)
-      while (d <= rangeEnd) {
-        const key = ymd(d)
-        dailyBuckets[key] = { 
-          date: key, 
-          attendance: 0, 
-          dayName: getDayNameAbbreviated(d.getDay()) 
-        }
-        d.setDate(d.getDate() + 1)
+    const dayCursor = new Date(rangeStart)
+    while (dayCursor <= rangeEnd) {
+      const key = ymd(dayCursor)
+      dailyBuckets[key] = {
+        date: key,
+        attendance: 0,
+        dayName: getDayNameAbbreviated(dayCursor.getDay())
       }
+      dayCursor.setDate(dayCursor.getDate() + 1)
     }
 
     // Aggregate into daily buckets
     for (const svc of servicesInWindow) {
       const key = ymd(svc.date)
-      const count = svc._count?.attendance ?? 0
-      if (!dailyBuckets[key]) {
-        dailyBuckets[key] = { 
-          date: key, 
-          attendance: count, 
-          dayName: getDayNameAbbreviated(new Date(svc.date).getDay()) 
-        }
-      } else {
-        dailyBuckets[key].attendance += count
-      }
+      dailyBuckets[key].attendance += svc._count?.attendance ?? 0
     }
 
     // Compose chart datasets from daily buckets

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getUserFromCookies, getCurrentOpenEvent } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getServiceSettingsCached } from '@/lib/serviceSettings'
 import DashboardShell from './DashboardShell'
 import type { Metadata } from 'next'
 
@@ -8,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const settings = await prisma.serviceSettings.findFirst()
+    const settings = await getServiceSettingsCached()
     const appName = settings?.appName ?? 'Church App'
     return {
       title: `${appName} - Dashboard`,
@@ -82,7 +83,7 @@ export default async function DashboardPage() {
         order: true
       }
     }),
-    prisma.serviceSettings.findFirst(),
+    getServiceSettingsCached(),
     prisma.serviceSchedule.findMany({
       where: { isActive: true },
       orderBy: { order: 'asc' }

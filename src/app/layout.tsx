@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DM_Serif_Display, DM_Sans } from "next/font/google";
-import { unstable_cache } from "next/cache";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { prisma } from "@/lib/prisma";
+import { getServiceSettingsCached } from "@/lib/serviceSettings";
 import type { TwitterCardType } from "@/types";
 
 const geistSans = Geist({
@@ -28,19 +27,9 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
 });
 
-// Cache SEO settings for 5 minutes to reduce database queries
-const getSEOSettings = unstable_cache(
-  async () => {
-    const settings = await prisma.serviceSettings.findFirst()
-    return settings
-  },
-  ['seo-settings'],
-  { revalidate: 300, tags: ['seo-settings'] }
-)
-
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const settings = await getSEOSettings()
+    const settings = await getServiceSettingsCached()
     const appName = settings?.appName ?? 'Church App'
     const title = settings?.seoTitle || `${appName} - Online Church Platform`
     const description = settings?.seoDescription || 'A modern online church platform with live streaming, user management, and analytics.'

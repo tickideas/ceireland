@@ -5,6 +5,12 @@ import { Prisma } from '@prisma/client'
 
 type Granularity = 'day' | 'month' | 'year'
 
+const MAX_BUCKETS: Record<Granularity, number> = {
+  day: 366,
+  month: 120,
+  year: 20,
+}
+
 function pad(n: number) { return String(n).padStart(2, '0') }
 function ymd(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}` }
 function ym(d: Date) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}` }
@@ -74,7 +80,62 @@ function csvEscape(val: unknown): string {
 }
 
 function dateTruncUnit(gran: Granularity): 'day' | 'month' | 'year' {
-  return gran === 'day' ? 'day' : gran === 'month' ? 'month' : 'year'
+  switch (gran) {
+    case 'day':
+      return 'day'
+    case 'month':
+      return 'month'
+    case 'year':
+      return 'year'
+  }
+}
+
+function parseLocalDate(input: string): Date | null {
+  const match = input.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/)
+  if (!match) {
+    const fallback = new Date(input)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+  }
+  const year = Number(match[1])
+  const month = Number(match[2] || '1') - 1
+  const day = Number(match[3] || '1')
+  const parsed = new Date(year, month, day)
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+function bucketCount(granularity: Granularity, start: Date, end: Date): number {
+  if (granularity === 'day') {
+    const startDay = startOfDay(start)
+    const endDay = startOfDay(end)
+    const msPerDay = 24 * 60 * 60 * 1000
+    return Math.floor((endDay.getTime() - startDay.getTime()) / msPerDay) + 1
+  }
+  if (granularity === 'month') {
+    return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1
+  }
+  return end.getFullYear() - start.getFullYear() + 1
+}
+
+function alignStart(granularity: Granularity, date: Date): Date {
+  switch (granularity) {
+    case 'day':
+      return startOfDay(date)
+    case 'month':
+      return startOfMonth(date)
+    case 'year':
+      return startOfYear(date)
+  }
+}
+
+function alignEnd(granularity: Granularity, date: Date): Date {
+  switch (granularity) {
+    case 'day':
+      return endOfDay(date)
+    case 'month':
+      return endOfMonth(date)
+    case 'year':
+      return endOfYear(date)
+  }
 }
 
 export async function GET(request: NextRequest) {
@@ -85,23 +146,39 @@ export async function GET(request: NextRequest) {
     if (!payload || payload.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
     const { searchParams } = new URL(request.url)
-    const gran = (searchParams.get('granularity') as Granularity) || 'month'
+    const granularityParam = searchParams.get('granularity')
+    if (granularityParam && !['day', 'month', 'year'].includes(granularityParam)) {
+      return NextResponse.json({ error: 'Invalid granularity' }, { status: 400 })
+    }
+    const gran = (granularityParam as Granularity) || 'month'
+
     const format = searchParams.get('format') || 'json'
+    if (format !== 'json' && format !== 'csv') {
+      return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
+    }
     const fromParam = searchParams.get('from')
     const toParam = searchParams.get('to')
 
-    const parseLocal = (s: string) => {
-      const m = s.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/)
-      if (!m) return new Date(s)
-      const yr = Number(m[1])
-      const mo = Number(m[2] || '1') - 1
-      const d = Number(m[3] || '1')
-      return new Date(yr, mo, d)
+    let { start, end } = defaultRange(gran)
+    if (fromParam) {
+      const parsedFrom = parseLocalDate(fromParam)
+      if (!parsedFrom) return NextResponse.json({ error: 'Invalid from date' }, { status: 400 })
+      start = alignStart(gran, parsedFrom)
+    }
+    if (toParam) {
+      const parsedTo = parseLocalDate(toParam)
+      if (!parsedTo) return NextResponse.json({ error: 'Invalid to date' }, { status: 400 })
+      end = alignEnd(gran, parsedTo)
     }
 
-    let { start, end } = defaultRange(gran)
-    if (fromParam) start = (gran === 'day' ? startOfDay : gran === 'month' ? startOfMonth : startOfYear)(parseLocal(fromParam))
-    if (toParam) end = (gran === 'day' ? endOfDay : gran === 'month' ? endOfMonth : endOfYear)(parseLocal(toParam))
+    if (start > end) {
+      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 })
+    }
+
+    const totalBuckets = bucketCount(gran, start, end)
+    if (totalBuckets > MAX_BUCKETS[gran]) {
+      return NextResponse.json({ error: 'Date range too large' }, { status: 400 })
+    }
 
     const labels = buildBuckets(gran, start, end)
     const unit = dateTruncUnit(gran)
