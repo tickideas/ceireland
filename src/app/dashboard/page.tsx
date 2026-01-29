@@ -2,8 +2,23 @@ import { redirect } from 'next/navigation'
 import { getUserFromCookies, getCurrentOpenEvent } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import DashboardShell from './DashboardShell'
+import type { Metadata } from 'next'
 
 export const dynamic = 'force-dynamic'
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const settings = await prisma.serviceSettings.findFirst()
+    const appName = settings?.appName ?? 'Church App'
+    return {
+      title: `${appName} - Dashboard`,
+    }
+  } catch {
+    return {
+      title: 'Church App - Dashboard',
+    }
+  }
+}
 
 
 
