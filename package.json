@@ -23,6 +23,7 @@
     "cheerio": "^1.2.0",
     "domhandler": "^5.0.3",
     "dotenv": "^17.2.3",
+    "effect": "^3.18.4",
     "hls.js": "^1.6.15",
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.563.0",
