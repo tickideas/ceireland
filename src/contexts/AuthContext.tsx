@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import type { SessionUser } from '@/types'
 
 interface AuthContextType {
@@ -20,6 +21,7 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
+  const router = useRouter()
   const [user, setUser] = useState<SessionUser | null>(initialUser)
   const [loading, setLoading] = useState(!initialUser)
   const [isCheckingAuth, setIsCheckingAuth] = useState(false)
@@ -60,7 +62,8 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const logout = useCallback(async () => {
     await fetch('/api/auth/logout', { method: 'POST' })
     setUser(null)
-  }, [])
+    router.push('/login')
+  }, [router])
 
   const value = useMemo(() => ({
     user,
