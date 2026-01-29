@@ -91,7 +91,7 @@ export default function AdminLayout({ activeTab, onTabChange, children }: AdminL
       <aside
         className={`
           fixed top-0 left-0 z-50 h-full bg-white border-r border-slate-200 shadow-2xl
-          transition-all duration-300 ease-in-out
+          transition-all duration-300 ease-in-out flex flex-col
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           lg:translate-x-0
           ${sidebarCollapsed ? 'lg:w-20 xl:w-20' : 'lg:w-64 xl:w-72'}
@@ -140,6 +140,20 @@ export default function AdminLayout({ activeTab, onTabChange, children }: AdminL
           </div>
         </div>
 
+        {/* Go to Service - Quick Access */}
+        <div className={`p-3 border-b border-slate-100 shrink-0 ${sidebarCollapsed ? 'lg:p-2' : ''}`}>
+          <Link
+            href="/dashboard"
+            className={`
+              w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 shadow-md shadow-emerald-500/25
+              ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}
+            `}
+          >
+            <Home size={20} className="shrink-0" />
+            <span className={`font-medium text-sm ${sidebarCollapsed ? 'lg:hidden' : ''}`}>Go to Service</span>
+          </Link>
+        </div>
+
         {/* Navigation */}
         <nav className="p-3 space-y-1 flex-1 overflow-y-auto min-h-0">
           {navItems.map((item) => {
@@ -176,17 +190,7 @@ export default function AdminLayout({ activeTab, onTabChange, children }: AdminL
         </nav>
 
         {/* Bottom Actions */}
-        <div className={`p-3 border-t border-slate-200 space-y-1 shrink-0 ${sidebarCollapsed ? 'lg:p-2' : ''}`}>
-          <Link
-            href="/dashboard"
-            className={`
-              w-full flex items-center space-x-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-all duration-200
-              ${sidebarCollapsed ? 'lg:justify-center lg:px-2' : ''}
-            `}
-          >
-            <Home size={20} className="text-slate-500 shrink-0" />
-            <span className={`font-medium text-sm ${sidebarCollapsed ? 'lg:hidden' : ''}`}>Go to Service</span>
-          </Link>
+        <div className={`p-3 border-t border-slate-200 shrink-0 ${sidebarCollapsed ? 'lg:p-2' : ''}`}>
           <button
             onClick={logout}
             className={`

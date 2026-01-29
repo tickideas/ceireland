@@ -63,7 +63,7 @@ export async function GET(
         guestCount: guestResult,
         memberCount: memberResult,
         uniqueDays: uniqueDays.length,
-        days: uniqueDays.map(d => d.date)
+        days: uniqueDays.map((d: { date: string }) => d.date)
       }
     })
   } catch (error) {
