@@ -27,7 +27,12 @@ export async function GET(request: NextRequest) {
       authLogoUrl: settings?.authLogoUrl ?? '',
       authWelcomeHeading: settings?.authWelcomeHeading ?? 'your community',
       authTagline: settings?.authTagline ?? 'Connect, worship, and grow together.',
-      authFooterText: settings?.authFooterText ?? 'Faith · Community · Purpose'
+      authFooterText: settings?.authFooterText ?? 'Faith · Community · Purpose',
+      seoTitle: settings?.seoTitle ?? '',
+      seoDescription: settings?.seoDescription ?? '',
+      seoImage: settings?.seoImage ?? '',
+      seoSiteName: settings?.seoSiteName ?? '',
+      twitterCardType: settings?.twitterCardType ?? 'summary_large_image'
     })
   } catch (error) {
     console.error('Get service settings error:', error)
@@ -61,6 +66,11 @@ export async function PUT(request: NextRequest) {
     if (body.authWelcomeHeading !== undefined) updateData.authWelcomeHeading = body.authWelcomeHeading
     if (body.authTagline !== undefined) updateData.authTagline = body.authTagline
     if (body.authFooterText !== undefined) updateData.authFooterText = body.authFooterText
+    if (body.seoTitle !== undefined) updateData.seoTitle = body.seoTitle
+    if (body.seoDescription !== undefined) updateData.seoDescription = body.seoDescription
+    if (body.seoImage !== undefined) updateData.seoImage = body.seoImage
+    if (body.seoSiteName !== undefined) updateData.seoSiteName = body.seoSiteName
+    if (body.twitterCardType !== undefined) updateData.twitterCardType = body.twitterCardType
 
     // Find existing settings or create
     const existing = await prisma.serviceSettings.findFirst()
@@ -86,6 +96,11 @@ export async function PUT(request: NextRequest) {
           authWelcomeHeading: body.authWelcomeHeading ?? 'your community',
           authTagline: body.authTagline ?? 'Connect, worship, and grow together.',
           authFooterText: body.authFooterText ?? 'Faith · Community · Purpose',
+          seoTitle: body.seoTitle ?? null,
+          seoDescription: body.seoDescription ?? null,
+          seoImage: body.seoImage ?? null,
+          seoSiteName: body.seoSiteName ?? null,
+          twitterCardType: body.twitterCardType ?? 'summary_large_image',
         }
       })
     }
@@ -105,6 +120,11 @@ export async function PUT(request: NextRequest) {
       authWelcomeHeading: saved.authWelcomeHeading ?? 'your community',
       authTagline: saved.authTagline ?? 'Connect, worship, and grow together.',
       authFooterText: saved.authFooterText ?? 'Faith · Community · Purpose',
+      seoTitle: saved.seoTitle ?? '',
+      seoDescription: saved.seoDescription ?? '',
+      seoImage: saved.seoImage ?? '',
+      seoSiteName: saved.seoSiteName ?? '',
+      twitterCardType: saved.twitterCardType ?? 'summary_large_image',
     })
   } catch (error) {
     console.error('Update service settings error:', error)

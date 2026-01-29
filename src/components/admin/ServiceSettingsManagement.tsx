@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { Settings, Image, Loader2, Check } from 'lucide-react'
+import { Settings, Image, Loader2, Check, Share2 } from 'lucide-react'
 
 interface ServiceSettings {
   appName: string
@@ -11,6 +11,11 @@ interface ServiceSettings {
   authWelcomeHeading?: string
   authTagline?: string
   authFooterText?: string
+  seoTitle?: string
+  seoDescription?: string
+  seoImage?: string
+  seoSiteName?: string
+  twitterCardType?: string
 }
 
 const defaults: ServiceSettings = {
@@ -20,7 +25,12 @@ const defaults: ServiceSettings = {
   authLogoUrl: '',
   authWelcomeHeading: 'your community',
   authTagline: 'Connect, worship, and grow together.',
-  authFooterText: 'Faith · Community · Purpose'
+  authFooterText: 'Faith · Community · Purpose',
+  seoTitle: '',
+  seoDescription: '',
+  seoImage: '',
+  seoSiteName: '',
+  twitterCardType: 'summary_large_image'
 }
 
 export default function ServiceSettingsManagement() {
@@ -218,6 +228,115 @@ export default function ServiceSettingsManagement() {
                 alt="Background preview"
                 className="w-full h-48 object-cover"
               />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* SEO & Social Sharing */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center space-x-3">
+          <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center">
+            <Share2 className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-slate-900">SEO & Social Sharing</h3>
+            <p className="text-sm text-slate-500">Control how your site appears when shared on WhatsApp, Facebook, Twitter, etc.</p>
+          </div>
+        </div>
+        <div className="p-6 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">SEO Title</label>
+              <input
+                type="text"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                value={settings.seoTitle || ''}
+                onChange={(e) => setSettings({ ...settings, seoTitle: e.target.value })}
+                placeholder="Christ Embassy Ireland - Online Church"
+              />
+              <p className="text-xs text-slate-500 mt-1">Title shown in social previews and search results</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Site Name</label>
+              <input
+                type="text"
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+                value={settings.seoSiteName || ''}
+                onChange={(e) => setSettings({ ...settings, seoSiteName: e.target.value })}
+                placeholder="Christ Embassy Ireland"
+              />
+              <p className="text-xs text-slate-500 mt-1">Your organization/site name for Open Graph</p>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">SEO Description</label>
+            <textarea
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors resize-none"
+              rows={3}
+              value={settings.seoDescription || ''}
+              onChange={(e) => setSettings({ ...settings, seoDescription: e.target.value })}
+              placeholder="Join our online church community. Watch live services, read daily devotionals, and connect with fellow believers."
+            />
+            <p className="text-xs text-slate-500 mt-1">Description shown in social previews (recommended: 150-160 characters)</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Social Share Image URL</label>
+            <input
+              type="url"
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={settings.seoImage || ''}
+              onChange={(e) => setSettings({ ...settings, seoImage: e.target.value })}
+              placeholder="https://example.com/social-image.jpg"
+            />
+            <p className="text-xs text-slate-500 mt-1">Image shown when link is shared (recommended: 1200x630px)</p>
+          </div>
+          {settings.seoImage && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <img
+                src={settings.seoImage}
+                alt="Social share preview"
+                className="w-full h-48 object-cover"
+              />
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Twitter Card Type</label>
+            <select
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors"
+              value={settings.twitterCardType || 'summary_large_image'}
+              onChange={(e) => setSettings({ ...settings, twitterCardType: e.target.value })}
+            >
+              <option value="summary_large_image">Large Image (recommended)</option>
+              <option value="summary">Summary (small image)</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1">How Twitter/X displays your shared link</p>
+          </div>
+
+          {/* Live Preview */}
+          {(settings.seoTitle || settings.seoDescription || settings.seoImage) && (
+            <div className="border-t border-slate-100 pt-6">
+              <p className="text-sm font-medium text-slate-700 mb-3">Preview (approximate)</p>
+              <div className="border border-slate-200 rounded-xl overflow-hidden max-w-md bg-white">
+                {settings.seoImage && (
+                  <img
+                    src={settings.seoImage}
+                    alt="Preview"
+                    className="w-full h-40 object-cover"
+                  />
+                )}
+                <div className="p-3">
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                    {settings.seoSiteName || settings.appName || 'yoursite.com'}
+                  </p>
+                  <p className="font-semibold text-slate-900 text-sm line-clamp-2">
+                    {settings.seoTitle || `${settings.appName} - Online Church Platform`}
+                  </p>
+                  <p className="text-slate-500 text-xs mt-1 line-clamp-2">
+                    {settings.seoDescription || 'A modern online church platform with live streaming, user management, and analytics.'}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
         </div>

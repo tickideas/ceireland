@@ -112,6 +112,12 @@ model ServiceSettings {
   authWelcomeHeading   String   @default("your community")
   authTagline          String   @default("Connect, worship, and grow together.")
   authFooterText       String   @default("Faith · Community · Purpose")
+  // SEO / Open Graph
+  seoTitle             String?
+  seoDescription       String?
+  seoImage             String?
+  seoSiteName          String?
+  twitterCardType      String   @default("summary_large_image")
   createdAt            DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

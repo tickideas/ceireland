@@ -30,9 +30,28 @@ export async function generateMetadata(): Promise<Metadata> {
   try {
     const settings = await prisma.serviceSettings.findFirst()
     const appName = settings?.appName ?? 'Church App'
+    const title = settings?.seoTitle || `${appName} - Online Church Platform`
+    const description = settings?.seoDescription || 'A modern online church platform with live streaming, user management, and analytics.'
+    const siteName = settings?.seoSiteName || appName
+    const image = settings?.seoImage
+    const twitterCard = (settings?.twitterCardType as 'summary' | 'summary_large_image') || 'summary_large_image'
+
     return {
-      title: `${appName} - Online Church Platform`,
-      description: "A modern online church platform with live streaming, user management, and analytics.",
+      title,
+      description,
+      openGraph: {
+        title,
+        description,
+        siteName,
+        type: 'website',
+        ...(image ? { images: [{ url: image, width: 1200, height: 630 }] } : {}),
+      },
+      twitter: {
+        card: twitterCard,
+        title,
+        description,
+        ...(image ? { images: [image] } : {}),
+      },
     }
   } catch {
     return {
