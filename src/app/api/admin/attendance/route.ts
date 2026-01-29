@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       select: { id: true, title: true, date: true }
     })
 
-    const serviceIds = services.map((s) => s.id)
+    const serviceIds = services.map((s: { id: string }) => s.id)
 
     // If no services that day, return empty
     if (serviceIds.length === 0) {
@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
       ]
     })
 
-    const records = attendance.map((a) => ({
+    const records = attendance.map((a: typeof attendance[number]) => ({
       serviceTitle: a.service.title,
       serviceDate: a.service.date,
       userTitle: a.user.title || '',
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
         'Phone',
         'Check-in Time'
       ]
-      const rows = records.map((r) => [
+      const rows = records.map((r: typeof records[number]) => [
         toCsvValue(r.serviceTitle),
         toCsvValue(new Date(r.serviceDate).toISOString()),
         toCsvValue(r.userTitle),

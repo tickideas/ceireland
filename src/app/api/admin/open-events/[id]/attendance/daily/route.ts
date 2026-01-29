@@ -76,7 +76,7 @@ export async function GET(
     })
 
     // Convert bigint to number for JSON serialization
-    const dailyBreakdown = dailyStats.map(day => ({
+    const dailyBreakdown = dailyStats.map((day: typeof dailyStats[number]) => ({
       date: day.date,
       total: Number(day.total),
       guests: Number(day.guests),

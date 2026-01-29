@@ -106,13 +106,13 @@ export default async function DashboardPage() {
     prayerTime: serviceSettingsData?.prayerTime ?? 'Daily 6:00 AM'
   }
 
-  const formattedBanners = banners.map(b => ({
+  const formattedBanners = banners.map((b: typeof banners[number]) => ({
     ...b,
     linkUrl: b.linkUrl
   }))
 
   const upcomingSchedules = serviceSchedules
-    .map(schedule => {
+    .map((schedule: typeof serviceSchedules[number]) => {
       const nextDate = calculateNextDate(
         schedule.recurrenceType as 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY',
         schedule.dayOfWeek,
@@ -131,7 +131,7 @@ export default async function DashboardPage() {
         nextDate: nextDate?.toISOString() ?? ''
       }
     })
-    .filter(schedule => {
+    .filter((schedule: { recurrenceType: string; nextDate: string }) => {
       if (schedule.recurrenceType === 'NONE') {
         return schedule.nextDate !== ''
       }

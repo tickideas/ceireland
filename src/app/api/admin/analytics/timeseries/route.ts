@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
-import { Prisma } from '@prisma/client'
 
 type Granularity = 'day' | 'month' | 'year'
 
@@ -188,40 +187,34 @@ export async function GET(request: NextRequest) {
 
     // Use raw SQL with date_trunc to aggregate at DB level - much more efficient than fetching all rows
     const [userRows, attendanceRows, serviceRows] = await Promise.all([
-      prisma.$queryRaw<UserRow[]>(
-        Prisma.sql`
-          SELECT
-            date_trunc(${unit}, "createdAt")::date AS bucket,
-            COUNT(*)::bigint AS "userscreated",
-            COUNT(*) FILTER (WHERE "approved" = TRUE)::bigint AS "usersapproved"
-          FROM "users"
-          WHERE "createdAt" BETWEEN ${start} AND ${end}
-          GROUP BY 1
-          ORDER BY 1
-        `
-      ),
-      prisma.$queryRaw<SimpleRow[]>(
-        Prisma.sql`
-          SELECT
-            date_trunc(${unit}, "checkInTime")::date AS bucket,
-            COUNT(*)::bigint AS "count"
-          FROM "attendance"
-          WHERE "checkInTime" BETWEEN ${start} AND ${end}
-          GROUP BY 1
-          ORDER BY 1
-        `
-      ),
-      prisma.$queryRaw<SimpleRow[]>(
-        Prisma.sql`
-          SELECT
-            date_trunc(${unit}, "date")::date AS bucket,
-            COUNT(*)::bigint AS "count"
-          FROM "services"
-          WHERE "date" BETWEEN ${start} AND ${end}
-          GROUP BY 1
-          ORDER BY 1
-        `
-      ),
+      prisma.$queryRaw<UserRow[]>`
+        SELECT
+          date_trunc(${unit}, "createdAt")::date AS bucket,
+          COUNT(*)::bigint AS "userscreated",
+          COUNT(*) FILTER (WHERE "approved" = TRUE)::bigint AS "usersapproved"
+        FROM "users"
+        WHERE "createdAt" BETWEEN ${start} AND ${end}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      prisma.$queryRaw<SimpleRow[]>`
+        SELECT
+          date_trunc(${unit}, "checkInTime")::date AS bucket,
+          COUNT(*)::bigint AS "count"
+        FROM "attendance"
+        WHERE "checkInTime" BETWEEN ${start} AND ${end}
+        GROUP BY 1
+        ORDER BY 1
+      `,
+      prisma.$queryRaw<SimpleRow[]>`
+        SELECT
+          date_trunc(${unit}, "date")::date AS bucket,
+          COUNT(*)::bigint AS "count"
+        FROM "services"
+        WHERE "date" BETWEEN ${start} AND ${end}
+        GROUP BY 1
+        ORDER BY 1
+      `,
     ])
 
     const usersCreated: Record<string, number> = Object.fromEntries(labels.map((l) => [l, 0]))

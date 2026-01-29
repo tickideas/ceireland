@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { DayOfWeek, RecurrenceType } from '@prisma/client'
+
+type DayOfWeek = 'SUNDAY' | 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY'
+type RecurrenceType = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY'
 
 const DAY_OF_WEEK_MAP: Record<DayOfWeek, number> = {
   SUNDAY: 0,
@@ -69,7 +71,14 @@ export async function GET() {
     })
 
     const schedulesWithNextDate = schedules
-      .map((schedule) => {
+      .map((schedule: {
+        id: string
+        recurrenceType: RecurrenceType
+        dayOfWeek: DayOfWeek | null
+        dayOfMonth: number | null
+        specificDate: Date | null
+        [key: string]: unknown
+      }) => {
         const nextDate = calculateNextDate(
           schedule.recurrenceType,
           schedule.dayOfWeek,
@@ -82,7 +91,7 @@ export async function GET() {
           nextDate: nextDate?.toISOString() ?? null,
         }
       })
-      .filter((schedule) => {
+      .filter((schedule: { recurrenceType: RecurrenceType; nextDate: string | null }) => {
         if (schedule.recurrenceType === 'NONE') {
           return schedule.nextDate !== null
         }

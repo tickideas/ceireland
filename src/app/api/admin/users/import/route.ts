@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
-import { Prisma } from '@prisma/client'
 
 interface IncomingUserRow {
   title?: string
@@ -106,14 +105,14 @@ export async function POST(request: NextRequest) {
 
     // Query existing duplicates in one go
     const existing = await prisma.user.findMany({ where: { email: { in: rawEmails } }, select: { email: true, id: true } })
-    const existingMap = new Map(existing.map(e => [e.email, e.id]))
+    const existingMap = new Map<string, string>(existing.map((e: { email: string; id: string }) => [e.email, e.id]))
 
     const toCreate = prepared.filter(p => !existingMap.has(p.data.email))
     const existingPrepared = prepared.filter(p => existingMap.has(p.data.email))
 
     existingPrepared.forEach(p => {
       duplicates++
-      results.push({ row: p.row, email: p.data.email, status: 'duplicate', id: existingMap.get(p.data.email)! })
+      results.push({ row: p.row, email: p.data.email, status: 'duplicate', id: existingMap.get(p.data.email) ?? '' })
     })
 
     // Batch create using createMany for better performance (reduces round-trips)
@@ -138,7 +137,7 @@ export async function POST(request: NextRequest) {
           where: { email: { in: createdEmails } },
           select: { id: true, email: true },
         })
-        const createdMap = new Map(createdUsers.map(u => [u.email, u.id]))
+        const createdMap = new Map<string, string>(createdUsers.map((u: { email: string; id: string }) => [u.email, u.id]))
         
         for (const meta of slice) {
           const id = createdMap.get(meta.data.email)
@@ -148,11 +147,11 @@ export async function POST(request: NextRequest) {
           } else if (!id) {
             // Race condition duplicate
             duplicates++
-            results.push({ 
-              row: meta.row, 
-              email: meta.data.email, 
-              status: 'duplicate', 
-              id: existingMap.get(meta.data.email) || 'N/A (concurrent duplicate)' 
+            results.push({
+              row: meta.row,
+              email: meta.data.email,
+              status: 'duplicate',
+              id: existingMap.get(meta.data.email) ?? 'N/A (concurrent duplicate)'
             })
           }
         }
@@ -168,10 +167,16 @@ export async function POST(request: NextRequest) {
           } catch (inner) {
             errors++
             let message = 'Unknown error'
-            if (inner instanceof Prisma.PrismaClientKnownRequestError) {
-              if (inner.code === 'P2002') message = 'Unique constraint violation'
-              else message = `Prisma error ${inner.code}`
-            } else if (inner instanceof Error) message = inner.message
+            if (inner instanceof Error) {
+              // Check for Prisma unique constraint violation
+              if ('code' in inner && (inner as { code: string }).code === 'P2002') {
+                message = 'Unique constraint violation'
+              } else if ('code' in inner) {
+                message = `Prisma error ${(inner as { code: string }).code}`
+              } else {
+                message = inner.message
+              }
+            }
             console.error('[USER_IMPORT_ROW_ERROR]', { email: s.data.email, error: inner })
             results.push({ row: s.row, email: s.data.email, status: 'error', message })
           }
