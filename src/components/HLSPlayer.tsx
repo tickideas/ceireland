@@ -413,23 +413,23 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     <div className="relative w-full h-full bg-black">
       {loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mb-4"></div>
-            <div className="text-sm">Loading stream...</div>
+          <div className="text-center px-4">
+            <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-white mb-3 sm:mb-4 mx-auto"></div>
+            <div className="text-xs sm:text-sm">Loading stream...</div>
           </div>
         </div>
       )}
 
       {!loading && !isActive && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-800 to-gray-900 text-white">
-          <div className="text-center px-6">
-            <div className="w-20 h-20 mx-auto mb-6 bg-gray-700 rounded-full flex items-center justify-center">
-              <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <div className="text-center px-4 sm:px-6">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 bg-gray-700 rounded-full flex items-center justify-center">
+              <svg className="w-7 h-7 sm:w-10 sm:h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold mb-2">Stream Currently Offline</h3>
-            <p className="text-gray-400 text-sm max-w-xs mx-auto">
+            <h3 className="text-base sm:text-xl font-semibold mb-1.5 sm:mb-2">Stream Currently Offline</h3>
+            <p className="text-gray-400 text-xs sm:text-sm max-w-xs mx-auto">
               There is no active service at this time. Please check back soon or view our schedule below.
             </p>
           </div>
@@ -437,10 +437,10 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       )}
 
       {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-red-900 text-white p-4">
+        <div className="absolute inset-0 flex items-center justify-center bg-red-900 text-white p-3 sm:p-4">
           <div className="text-center">
-            <div className="text-xl font-bold mb-2">Error</div>
-            <div className="text-sm">{error}</div>
+            <div className="text-base sm:text-xl font-bold mb-1.5 sm:mb-2">Error</div>
+            <div className="text-xs sm:text-sm max-w-xs">{error}</div>
           </div>
         </div>
       )}
@@ -459,11 +459,11 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       {/* Custom Play Overlay */}
       {!isPlaying && !error && !loading && isActive && (
         <div
-          className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black bg-opacity-30 hover:bg-opacity-20 transition-all"
+          className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black bg-opacity-30 hover:bg-opacity-20 active:bg-opacity-10 transition-all touch-manipulation"
           onClick={togglePlay}
         >
-          <div className="w-20 h-20 bg-white bg-opacity-80 rounded-full flex items-center justify-center hover:bg-opacity-100 transition-all">
-            <svg className="w-12 h-12 text-gray-900 ml-1" fill="currentColor" viewBox="0 0 20 20">
+          <div className="w-14 h-14 sm:w-20 sm:h-20 bg-white bg-opacity-80 rounded-full flex items-center justify-center hover:bg-opacity-100 active:scale-95 transition-all">
+            <svg className="w-8 h-8 sm:w-12 sm:h-12 text-gray-900 ml-0.5 sm:ml-1" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
             </svg>
           </div>
@@ -473,7 +473,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       {/* Unmute Overlay */}
       {isPlaying && isMuted && !error && !loading && (
         <div
-          className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/0"
+          className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/0 touch-manipulation"
           onClick={() => {
             const v = videoRef.current
             if (!v) return
@@ -484,17 +484,17 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
           aria-label="Click to unmute"
           role="button"
         >
-          <div className="px-4 py-2 rounded-full bg-white/80 text-gray-900 text-sm font-medium shadow">
-            Click to unmute
+          <div className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-white/80 text-gray-900 text-xs sm:text-sm font-medium shadow active:bg-white/90">
+            Tap to unmute
           </div>
         </div>
       )}
 
       {/* Live Indicator with Viewer Count */}
       {isActive && (
-        <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-bold animate-pulse flex items-center justify-center">
+        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-red-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold animate-pulse flex items-center justify-center">
           {viewerCount !== null && viewerCount > 0 ? (
-            <span>LIVE • {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}</span>
+            <span className="whitespace-nowrap">LIVE <span className="hidden sm:inline">• {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}</span></span>
           ) : (
             <span>LIVE</span>
           )}
