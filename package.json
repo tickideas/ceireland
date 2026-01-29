@@ -7,13 +7,14 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma} && prisma db push --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
+    "postinstall": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
     "db:generate": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
-    "db:push": "prisma db push --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
+    "db:migrate": "prisma migrate dev --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
+    "db:migrate:create": "prisma migrate dev --create-only --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
     "db:seed": "tsx prisma/seed.ts",
-    "db:setup": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma} && prisma db push --schema ${PRISMA_SCHEMA:-prisma/schema.prisma} && tsx prisma/seed.ts",
-    "db:push:prod": "prisma db push --schema prisma/schema.prisma",
-    "db:migrate:deploy:prod": "prisma migrate deploy --schema prisma/schema.prisma"
+    "db:setup": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma} && prisma migrate deploy --schema ${PRISMA_SCHEMA:-prisma/schema.prisma} && tsx prisma/seed.ts",
+    "db:deploy": "prisma migrate deploy --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
+    "db:status": "prisma migrate status --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

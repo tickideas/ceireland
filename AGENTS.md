@@ -12,25 +12,90 @@ This document guides AI coding assistants when making changes to the Christ Emba
 ---
 ## Coding Guidelines
 ## Root Setup Commands
-## Common Tasks
+## Database Migrations (REQUIRED)
+
+**⚠️ CRITICAL: Always use migrations, never `db push` for schema changes**
+
+This project uses Prisma Migrate for all database schema changes. This ensures:
+- Production deployments are automatic and safe
+- Schema changes are version controlled
+- Rollbacks are possible if needed
+- Multiple environments stay in sync
+
+### Migration Workflow
+
+**For Development (creating new migrations):**
 ```bash
-# Install (auto-runs prisma generate + db push)
+# After modifying prisma/schema.prisma, create a migration
+npm run db:migrate
+
+# Or create migration without applying (to review SQL first)
+npm run db:migrate:create
+```
+
+**For Production/CI (applying migrations):**
+```bash
+# Deploy pending migrations (used in production)
+npm run db:deploy
+
+# Check migration status
+npm run db:status
+```
+
+**Full Setup (new developer):**
+```bash
+# Install dependencies
 npm install
+
+# Start PostgreSQL locally
+docker compose up -d
+
+# Run all migrations and seed data
+npm run db:setup
+
+# Dev server (Turbopack)
+npm run dev
+```
+
+### Migration Rules
+
+1. **Never use `db push`** - Always create migrations with `db:migrate`
+2. **Commit migration files** - Always commit the `prisma/migrations/` folder
+3. **Test migrations locally** - Run `db:deploy` locally before pushing
+4. **Name migrations clearly** - Use descriptive names like `add_user_roles`, `create_events_table`
+5. **One change per migration** - Don't bundle unrelated schema changes
+
+### Common Tasks
+```bash
+# Install (auto-runs prisma generate)
+npm install
+
 ### Add Admin Setting
 # Start PostgreSQL locally
 docker compose up -d
+
 ### Update Stream Behavior
-# Full DB setup (generate + push + seed)
+# Full DB setup (generate + migrate deploy + seed)
 npm run db:setup
+
 ### Adjust Service Labels or Auth Background
 # Dev server (Turbopack)
 npm run dev
+
 ### Banners CRUD
 # Build & Start
 npm run build && npm start
+
 ### Attendance Analytics
 # Lint
 npm run lint
+
+### Database Schema Changes
+# Create migration after editing schema.prisma
+npm run db:migrate
+
+### Deploy migrations to production
+npm run db:deploy
 ```
 ### Open Events
 ---
@@ -159,8 +224,10 @@ if (session.role !== 'ADMIN') {
 
 ### DB Schema Change
 1. Edit `prisma/schema.prisma`
-2. Run `npm run db:push` (dev) or migrations (prod)
-3. Update types in `src/types/index.ts` if needed
+2. Create migration: `npm run db:migrate` (dev) or `npm run db:migrate:create` (to review SQL)
+3. Test migration: `npm run db:deploy` (verifies it works like production)
+4. Commit the migration files in `prisma/migrations/`
+5. Update types in `src/types/index.ts` if needed
 
 ---
 
