@@ -1,26 +1,64 @@
 # AGENTS.md — Coding Guidelines
 
 This document guides AI coding assistants when making changes to the Christ Embassy Ireland app.
-## Quick Context
-## Local Dev
+
+---
+
 ## Project Snapshot
-## Project Structure
+
 - **Type**: Single Next.js app (not a monorepo)
 - **Stack**: Next.js 16, React 19, TypeScript 5.9, Tailwind 4, Prisma 6 + PostgreSQL
 - **Auth**: JWT in HTTP-only cookies; magic link login; Open Events for guest access
-## Key Database Models
+- **Deployment**: Dokploy (self-hosted PaaS)
+
 ---
-## Coding Guidelines
+
 ## Root Setup Commands
+
+```bash
+# Install dependencies (auto-runs prisma generate)
+npm install
+
+# Start PostgreSQL locally
+docker compose up -d
+
+# Full DB setup (generate + migrate deploy + seed)
+npm run db:setup
+
+# Dev server (Turbopack)
+npm run dev
+
+# Build & Start
+npm run build && npm start
+
+# Lint
+npm run lint
+```
+
+---
+
+## Universal Conventions
+
+- **TypeScript**: Strict mode enabled
+- **Code style**: ESLint 9 flat config, Tailwind utility-first
+- **Commits**: Conventional Commits format (`type(scope): description`)
+- **PRs**: One logical change per PR; descriptive titles
+- **Git Workflow**: Create feature branch → commit frequently → never work on main directly
+
+---
+
+## Security & Secrets
+
+- Never commit real credentials; `.env` stays local
+- Admin routes must enforce `role === 'ADMIN'` via JWT
+- Cookies: `httpOnly` + `secure` in production
+- Return generic error messages to prevent information disclosure
+
+---
+
 ## Database Migrations (REQUIRED)
 
 **⚠️ CRITICAL: Always use migrations, never `db push` for schema changes**
-
-This project uses Prisma Migrate for all database schema changes. This ensures:
-- Production deployments are automatic and safe
-- Schema changes are version controlled
-- Rollbacks are possible if needed
-- Multiple environments stay in sync
 
 ### Migration Workflow
 
@@ -42,21 +80,6 @@ npm run db:deploy
 npm run db:status
 ```
 
-**Full Setup (new developer):**
-```bash
-# Install dependencies
-npm install
-
-# Start PostgreSQL locally
-docker compose up -d
-
-# Run all migrations and seed data
-npm run db:setup
-
-# Dev server (Turbopack)
-npm run dev
-```
-
 ### Migration Rules
 
 1. **Never use `db push`** - Always create migrations with `db:migrate`
@@ -65,63 +88,12 @@ npm run dev
 4. **Name migrations clearly** - Use descriptive names like `add_user_roles`, `create_events_table`
 5. **One change per migration** - Don't bundle unrelated schema changes
 
-### Common Tasks
-```bash
-# Install (auto-runs prisma generate)
-npm install
-
-### Add Admin Setting
-# Start PostgreSQL locally
-docker compose up -d
-
-### Update Stream Behavior
-# Full DB setup (generate + migrate deploy + seed)
-npm run db:setup
-
-### Adjust Service Labels or Auth Background
-# Dev server (Turbopack)
-npm run dev
-
-### Banners CRUD
-# Build & Start
-npm run build && npm start
-
-### Attendance Analytics
-# Lint
-npm run lint
-
-### Database Schema Changes
-# Create migration after editing schema.prisma
-npm run db:migrate
-
-### Deploy migrations to production
-npm run db:deploy
-```
-### Open Events
 ---
-### User Import
-## Universal Conventions
-### Rhapsody Devotional Integration
-- **TypeScript**: Strict mode enabled
-- **Code style**: ESLint 9 flat config, Tailwind utility-first
-- **Commits**: Conventional Commits format
-- **PRs**: One logical change per PR; descriptive titles
-## Tech Stack Details
----
-### Frontend
-## Security & Secrets
-### Backend
-- Never commit real credentials; `.env` stays local
-- Admin routes must enforce `role === 'ADMIN'` via JWT
-- Cookies: `httpOnly` + `secure` in production
-- Return generic error messages to prevent information disclosure
-### Development
----
-## Error Handling Patterns
+
 ## JIT Index (what to open, not what to paste)
-```typescript
+
 ### Directory Map
-// In API routes:
+
 | Area | Path | Purpose |
 |------|------|---------|
 | App Routes | `src/app/` | Next.js App Router pages and API routes |
@@ -131,31 +103,23 @@ npm run db:deploy
 | Contexts | `src/contexts/AuthContext.tsx` | Global auth state |
 | Hooks | `src/hooks/` | Custom React hooks |
 | Database | `prisma/schema.prisma` | Prisma schema (PostgreSQL) |
-// Available error classes: ValidationError (400), AuthenticationError (401),
+
 ### Quick Find Commands
-## Testing & Validation
+
 ```bash
 # Find API route handlers
 rg -n "export (async function|const) (GET|POST|PUT|DELETE|PATCH)" src/app/api
-## Security & Secrets
+
 # Find React components
 rg -n "export (default function|function|const)" src/components
-## PR/Change Hygiene
+
 # Find Prisma models
 rg -n "^model " prisma/schema.prisma
-## Non-Goals for Agents
+
 # Find Zod schemas
 rg -n "z\.(object|string|number)" src/lib/validation.ts
 ```
-## Useful References
----
-## Key Environment Variables
-## Definition of Done
-## Tips for Success
-- [ ] `npm run lint` passes
-- [ ] Changes tested locally (login, dashboard, affected flows)
-- [ ] No secrets or PII in code or logs
-</coding_guidelines>
+
 ---
 
 ## Patterns & Conventions
@@ -255,9 +219,20 @@ npm run lint && npm run build
 | `README.md` | Setup, env vars, deployment |
 | `docs/PRODUCT.md` | Product scope and personas |
 | `docs/DEPLOYMENT_GUIDE.md` | Production deployment |
+| `docs/DOKPLOY_DEPLOYMENT.md` | Dokploy-specific deployment guide |
 | `docs/OPERATIONS.md` | Runbook and troubleshooting |
 | `docs/BANNER_DESIGN_GUIDE.md` | Banner specs |
 | `docs/RhapsodyDaily.md` | Devotional API docs |
+
+---
+
+## Definition of Done
+
+- [ ] `npm run lint` passes
+- [ ] Changes tested locally (login, dashboard, affected flows)
+- [ ] No secrets or PII in code or logs
+- [ ] Migration created if schema changed
+- [ ] Commits follow conventional format
 
 ---
 
