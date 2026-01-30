@@ -62,6 +62,11 @@ const CTAManagement = dynamic(() => import('@/components/admin/CTAManagement'), 
   loading: LoadingSpinner
 })
 
+const EmailSettingsManagement = dynamic(() => import('@/components/admin/EmailSettingsManagement'), {
+  ssr: false,
+  loading: LoadingSpinner
+})
+
 export default function AdminDashboardPage() {
   const { user, loading } = useAuth()
   const router = useRouter()
@@ -115,6 +120,8 @@ export default function AdminDashboardPage() {
         return <OpenEventManager />
       case 'cta':
         return <CTAManagement />
+      case 'email':
+        return <EmailSettingsManagement />
       default:
         return <AnalyticsDashboard />
     }

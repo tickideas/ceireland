@@ -247,6 +247,37 @@ export function formatZodErrors(error: z.ZodError<unknown>): string[] {
 }
 
 /**
+ * Email settings schema
+ */
+export const emailSettingsSchema = z.object({
+  emailVerificationEnabled: z.boolean().optional(),
+  providerApiKey: z.string().max(500).optional().nullable(),
+  providerBaseUrl: z
+    .string()
+    .url('Invalid base URL')
+    .max(500, 'URL too long')
+    .optional()
+    .nullable(),
+  fromEmail: z
+    .string()
+    .email('Invalid from email')
+    .max(255, 'Email too long')
+    .optional()
+    .nullable(),
+  fromName: z.string().max(100, 'Name too long').optional().nullable(),
+})
+
+export const testEmailSchema = z.object({
+  recipientEmail: z
+    .string()
+    .min(1, 'Recipient email is required')
+    .email('Invalid email format')
+    .max(255, 'Email too long')
+    .toLowerCase()
+    .trim(),
+})
+
+/**
  * Type exports for validated data
  */
 export type LoginInput = z.infer<typeof loginSchema>
@@ -261,3 +292,5 @@ export type AttendanceQueryInput = z.infer<typeof attendanceQuerySchema>
 export type AnalyticsQueryInput = z.infer<typeof analyticsQuerySchema>
 export type TimeseriesQueryInput = z.infer<typeof timeseriesQuerySchema>
 export type BulkUserImportInput = z.infer<typeof bulkUserImportSchema>
+export type EmailSettingsInput = z.infer<typeof emailSettingsSchema>
+export type TestEmailInput = z.infer<typeof testEmailSchema>

@@ -18,10 +18,11 @@ import {
   LogOut,
   ChevronRight,
   Home,
-  Heart
+  Heart,
+  Mail
 } from 'lucide-react'
 
-export type AdminTab = 'dashboard' | 'users' | 'banners' | 'stream' | 'service' | 'schedules' | 'import' | 'reports' | 'openEvents' | 'cta'
+export type AdminTab = 'dashboard' | 'users' | 'banners' | 'stream' | 'service' | 'schedules' | 'import' | 'reports' | 'openEvents' | 'cta' | 'email'
 
 interface AdminLayoutProps {
   activeTab: AdminTab
@@ -37,6 +38,7 @@ const navItems: { id: AdminTab; label: string; icon: React.ReactNode; descriptio
   { id: 'service', label: 'Service Info', icon: <Settings size={20} />, description: 'App configuration' },
   { id: 'schedules', label: 'Schedules', icon: <CalendarClock size={20} />, description: 'Service schedules' },
   { id: 'cta', label: 'CTA Buttons', icon: <Heart size={20} />, description: 'Giving, Prayer, Salvation' },
+  { id: 'email', label: 'Email', icon: <Mail size={20} />, description: 'Email settings' },
   { id: 'import', label: 'Import', icon: <UserPlus size={20} />, description: 'Bulk member import' },
   { id: 'reports', label: 'Reports', icon: <FileText size={20} />, description: 'Attendance reports' },
   { id: 'openEvents', label: 'Open Events', icon: <Calendar size={20} />, description: 'Public events' }

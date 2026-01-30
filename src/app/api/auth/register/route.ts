@@ -7,6 +7,7 @@ import {
   sendVerificationEmail,
   isDisposableEmail
 } from '@/lib/emailVerification'
+import { isEmailVerificationEnabled } from '@/lib/email'
 import {
   ValidationError,
   ConflictError,
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
+    // Check if email verification is enabled
+    const verificationEnabled = await isEmailVerificationEnabled()
+
     const user = await prisma.user.create({
       data: {
         title,
@@ -68,24 +72,39 @@ export async function POST(request: NextRequest) {
         email,
         phone,
         approved: true,
-        emailVerified: false
+        // Auto-verify if email verification is disabled
+        emailVerified: !verificationEnabled,
+        emailVerifiedAt: !verificationEnabled ? new Date() : null
       }
     })
 
-    // Generate and send verification email
-    const token = await createVerificationToken(email)
-    const emailResult = await sendVerificationEmail(email, `${name} ${lastName}`, token)
+    // Only send verification email if verification is enabled
+    if (verificationEnabled) {
+      const token = await createVerificationToken(email)
+      const emailResult = await sendVerificationEmail(email, `${name} ${lastName}`, token)
 
+      return NextResponse.json({
+        message: emailResult.success
+          ? 'Registration successful! Please check your email to verify your account.'
+          : 'Registration successful! Please contact support to activate your account.',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name
+        },
+        requiresVerification: true
+      })
+    }
+
+    // Email verification disabled - user can log in immediately
     return NextResponse.json({
-      message: emailResult.success
-        ? 'Registration successful! Please check your email to verify your account.'
-        : 'Registration successful! Please contact support to activate your account.',
+      message: 'Registration successful! You can now log in.',
       user: {
         id: user.id,
         email: user.email,
         name: user.name
       },
-      requiresVerification: true
+      requiresVerification: false
     })
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error')

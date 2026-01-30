@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { usesend, isEmailConfigured } from '@/lib/email'
+import { getEmailClient, isEmailConfigured, getFromHeader } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,9 +23,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email required' }, { status: 400 })
     }
 
-    if (!isEmailConfigured()) {
+    const configured = await isEmailConfigured()
+    if (!configured) {
       return NextResponse.json({
-        error: 'Usesend not configured',
+        error: 'Email not configured',
         env: {
           hasApiKey: !!process.env.USESEND_API_KEY,
           hasBaseUrl: !!process.env.USESEND_BASE_URL,
@@ -34,21 +35,25 @@ export async function POST(request: NextRequest) {
       }, { status: 500 })
     }
 
-    const fromEmail = process.env.USESEND_FROM_EMAIL || 'noreply@christembassyireland.org'
-    const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Christ Embassy Ireland'
+    const client = await getEmailClient()
+    if (!client) {
+      return NextResponse.json({ error: 'Failed to create email client' }, { status: 500 })
+    }
 
-    const result = await usesend!.emails.send({
-      from: `${appName} <${fromEmail}>`,
+    const fromHeader = await getFromHeader()
+
+    const result = await client.emails.send({
+      from: fromHeader,
       to: email,
       subject: 'Test Email from Christ Embassy Ireland',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #1a365d;">Test Email</h2>
           <p>This is a test email from your Christ Embassy Ireland app.</p>
-          <p>If you received this, your Usesend configuration is working!</p>
+          <p>If you received this, your email configuration is working!</p>
           <hr style="margin: 24px 0;" />
           <p style="color: #718096; font-size: 12px;">
-            Config: ${process.env.USESEND_BASE_URL || 'default'}
+            Sent at: ${new Date().toISOString()}
           </p>
         </div>
       `
@@ -57,11 +62,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       message: 'Test email sent successfully',
-      result,
-      config: {
-        from: fromEmail,
-        baseUrl: process.env.USESEND_BASE_URL || 'https://app.usesend.com/api'
-      }
+      result
     })
   } catch (error) {
     console.error('Test email error:', error)

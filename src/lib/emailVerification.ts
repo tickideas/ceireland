@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { prisma } from './prisma'
-import { usesend, isEmailConfigured } from './email'
+import { getEmailClient, getFromHeader, isEmailConfigured, getFromName } from './email'
 
 const TOKEN_EXPIRY_HOURS = 24
 const DISPOSABLE_EMAIL_DOMAINS = [
@@ -81,17 +81,23 @@ export async function sendVerificationEmail(
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
   const verificationUrl = `${appUrl}/api/auth/verify-email?token=${token}`
 
-  if (!isEmailConfigured()) {
-    console.warn('Usesend not configured; verification email not sent')
+  const configured = await isEmailConfigured()
+  if (!configured) {
+    console.warn('Email not configured; verification email not sent')
     return { success: false, error: 'Email service not configured' }
   }
 
   try {
-    const fromEmail = process.env.USESEND_FROM_EMAIL || 'noreply@christembassyireland.org'
-    const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Christ Embassy Ireland'
+    const client = await getEmailClient()
+    if (!client) {
+      return { success: false, error: 'Email service not configured' }
+    }
 
-    await usesend!.emails.send({
-      from: `${appName} <${fromEmail}>`,
+    const fromHeader = await getFromHeader()
+    const appName = await getFromName()
+
+    await client.emails.send({
+      from: fromHeader,
       to: email,
       subject: 'Verify your email address',
       html: `
@@ -102,12 +108,12 @@ export async function sendVerificationEmail(
             Thank you for registering. Please verify your email address by clicking the button below:
           </p>
           <div style="text-align: center; margin: 32px 0;">
-            <a href="${verificationUrl}" 
-               style="background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%); 
-                      color: white; 
-                      padding: 14px 32px; 
-                      text-decoration: none; 
-                      border-radius: 8px; 
+            <a href="${verificationUrl}"
+               style="background: linear-gradient(135deg, #1a365d 0%, #2b6cb0 100%);
+                      color: white;
+                      padding: 14px 32px;
+                      text-decoration: none;
+                      border-radius: 8px;
                       font-weight: 600;
                       display: inline-block;">
               Verify Email Address

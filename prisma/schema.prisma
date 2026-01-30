@@ -316,3 +316,17 @@ model SalvationResponse {
   @@index([createdAt])
   @@map("salvation_responses")
 }
+
+// Email configuration settings (singleton - only one row)
+model EmailSettings {
+  id                       String   @id @default(cuid())
+  emailVerificationEnabled Boolean  @default(true)
+  providerApiKey           String?  // Encrypted/stored securely
+  providerBaseUrl          String?
+  fromEmail                String?
+  fromName                 String?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("email_settings")
+}

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { signToken } from '@/lib/auth'
 import { checkRateLimit, RATE_LIMITS, resetRateLimit } from '@/lib/rateLimit'
 import { loginSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { isEmailVerificationEnabled } from '@/lib/email'
 import {
   ValidationError,
   AuthenticationError,
@@ -57,7 +58,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    if (!user.emailVerified) {
+    // Only check email verification if it's enabled in settings
+    // ADMIN users bypass email verification requirement (they're trusted)
+    const verificationEnabled = await isEmailVerificationEnabled()
+    if (verificationEnabled && !user.emailVerified && user.role !== 'ADMIN') {
       const err = new AuthenticationError('Please verify your email address before logging in')
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }

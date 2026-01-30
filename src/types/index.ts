@@ -256,6 +256,37 @@ export interface SEOSettings {
   twitterCardType: TwitterCardType
 }
 
+// Email settings types
+export interface EmailSettings {
+  id: string
+  emailVerificationEnabled: boolean
+  providerApiKey: string | null
+  providerBaseUrl: string | null
+  fromEmail: string | null
+  fromName: string | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface EmailSettingsResponse {
+  id: string
+  emailVerificationEnabled: boolean
+  providerApiKey: string | null // Masked - only shows last 4 chars
+  providerBaseUrl: string | null
+  fromEmail: string | null
+  fromName: string | null
+  hasApiKey: boolean // Indicates if API key is configured
+  isConfigured: boolean // True if all required fields are set
+}
+
+export interface EmailSettingsFormData {
+  emailVerificationEnabled: boolean
+  providerApiKey: string
+  providerBaseUrl: string
+  fromEmail: string
+  fromName: string
+}
+
 // Utility types
 export type RequireAtLeastOne<T> = {
   [K in keyof T]-?: Required<Pick<T, K>> & Partial<Pick<T, Exclude<keyof T, K>>>
