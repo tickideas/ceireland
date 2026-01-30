@@ -151,7 +151,7 @@ docker compose down -v
    ```bash
    npm install
    ```
-   > The `postinstall` script automatically runs `prisma generate` and `prisma db push`.
+   > The `postinstall` script automatically runs `prisma generate`.
    
 3. **Configure environment variables**
    Create a `.env` (or `.env.local`) file in the project root with the following baseline configuration:
@@ -182,7 +182,7 @@ docker compose down -v
    ```bash
    npm run db:setup
    ```
-   This script runs `prisma generate`, `prisma db push`, and seeds starter data via `prisma/seed.ts`.
+   This script runs `prisma generate`, `prisma migrate deploy`, and seeds starter data via `prisma/seed.ts`.
    
 5. **Run the development server**
    ```bash
@@ -201,11 +201,12 @@ docker compose down -v
 | `npm start` | Run the compiled production build |
 | `npm run lint` | Run ESLint across the project |
 | `npm run db:generate` | Generate Prisma client |
-| `npm run db:push` | Sync Prisma schema to the database |
-| `npm run db:seed` | Seed data without pushing schema changes |
-| `npm run db:setup` | Generate + push + seed in one command (recommended for fresh setups) |
-| `npm run db:push:prod` | Push schema changes using production Prisma schema |
-| `npm run db:migrate:deploy:prod` | Deploy migrations in production (when using `prisma migrate`) |
+| `npm run db:migrate` | Create and apply a new migration (development) |
+| `npm run db:migrate:create` | Create migration without applying (review SQL first) |
+| `npm run db:deploy` | Deploy pending migrations (production/CI) |
+| `npm run db:status` | Check migration status |
+| `npm run db:seed` | Seed data without schema changes |
+| `npm run db:setup` | Generate + migrate deploy + seed in one command (recommended for fresh setups) |
 
 ## 📱 Usage
 
@@ -276,7 +277,7 @@ For other email providers, configure the appropriate SMTP settings.
 2. In Vercel, click **New Project** and import the repository
 3. Framework preset: Next.js (Node 18+). Turbopack builds are supported out of the box
 4. Add environment variables (see above). Point `DATABASE_URL` (and `DIRECT_URL` if using Accelerate) at your production PostgreSQL instance
-5. Run the initial Prisma migrations from your local machine: `npm run db:push` (or use `prisma migrate deploy` in CI)
+5. Run the initial Prisma migrations from your local machine: `npm run db:deploy` (or use `prisma migrate deploy` in CI)
 6. Deploy and verify admin dashboard functionality (stream settings, service info, banners, open events)
 
 Environment variables to configure in Vercel:
@@ -296,7 +297,7 @@ Environment variables to configure in Vercel:
 
 - **Secrets**: Set a strong `JWT_SECRET`; rotate credentials if compromised. Secure `.env` values
 - **Database**: Use managed PostgreSQL with backups, connection pooling, and restricted network access
-- **Migrations**: Prefer `prisma migrate deploy` in CI for production schema changes (or `prisma db push` for early prototyping)
+- **Migrations**: Always use `prisma migrate deploy` in CI for production schema changes. Never use `prisma db push` in production.
 - **SMTP**: Send from a verified domain with SPF/DKIM/DMARC enabled. Confirm `SMTP_FROM` matches the verified domain
 - **Cookies & HTTPS**: Enforce HTTPS; `auth-token` cookies are `httpOnly` + `secure` in production
 - **Admin Bootstrap**: Register an account, promote it to `ADMIN` in the database, and confirm `/admin/dashboard` access
