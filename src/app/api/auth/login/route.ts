@@ -46,7 +46,8 @@ export async function POST(request: NextRequest) {
         title: true,
         phone: true,
         role: true,
-        approved: true
+        approved: true,
+        emailVerified: true
       }
     })
 
@@ -56,8 +57,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
+    if (!user.emailVerified) {
+      const err = new AuthenticationError('Please verify your email address before logging in')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
     if (!user.approved) {
-      const err = new AuthenticationError('Invalid credentials')
+      const err = new AuthenticationError('Your account is pending admin approval')
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 

@@ -18,6 +18,16 @@ export const loginSchema = z.object({
     .trim(),
 })
 
+export const resendVerificationSchema = z.object({
+  email: z
+    .string()
+    .min(1, 'Email is required')
+    .email('Invalid email format')
+    .max(255, 'Email too long')
+    .toLowerCase()
+    .trim(),
+})
+
 export const registerSchema = z.object({
   title: z
     .string()
@@ -241,6 +251,7 @@ export function formatZodErrors(error: z.ZodError<unknown>): string[] {
  */
 export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
+export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
 export type BannerInput = z.infer<typeof bannerSchema>
 export type StreamSettingsInput = z.infer<typeof streamSettingsSchema>

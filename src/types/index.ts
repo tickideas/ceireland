@@ -11,6 +11,8 @@ export interface User {
   email: string
   phone: string | null
   approved: boolean
+  emailVerified: boolean
+  emailVerifiedAt: Date | null
   role: 'USER' | 'ADMIN'
   createdAt: Date
   updatedAt: Date
@@ -24,6 +26,7 @@ export interface UserWithoutDates {
   email: string
   phone?: string
   approved: boolean
+  emailVerified: boolean
   role: 'USER' | 'ADMIN'
 }
 
@@ -38,6 +41,7 @@ export interface SessionUser {
   phone?: string | null
   role: 'USER' | 'ADMIN'
   approved: boolean
+  emailVerified: boolean
 }
 
 // Service types

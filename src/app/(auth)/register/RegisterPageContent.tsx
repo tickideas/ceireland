@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AuthBrandPanel } from '@/components/AuthBrandPanel'
 
@@ -24,10 +23,10 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
     honeypot: ''
   })
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [focusedField, setFocusedField] = useState<string | null>(null)
-  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -45,8 +44,8 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
       const data = await response.json()
 
       if (response.ok) {
+        setSuccess(true)
         setMessage(data.message)
-        setTimeout(() => router.push('/login'), 3000)
       } else {
         setError(data.error)
       }
@@ -153,19 +152,43 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
           </div>
 
           {/* Success message */}
-          {message && (
+          {success && (
             <div
-              className="mt-5 p-4 rounded-xl border auth-animate-scale-in"
+              className="mt-5 p-5 rounded-xl border auth-animate-scale-in"
               style={{ background: '#f0fdf4', borderColor: '#bbf7d0' }}
             >
-              <div className="flex gap-3">
-                <div className="flex-shrink-0 mt-0.5">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                    <polyline points="22 4 12 14.01 9 11.01" />
-                  </svg>
+              <div className="flex gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  </div>
                 </div>
-                <p className="text-sm text-green-800">{message}</p>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-green-900 mb-1">Registration Successful!</h3>
+                  <p className="text-sm text-green-800 mb-3">{message}</p>
+                  <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50/50 p-3 rounded-lg">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect width="20" height="16" x="2" y="4" rx="2" />
+                      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                    </svg>
+                    <span>Check your inbox and spam folder</span>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-green-200">
+                    <Link
+                      href="/login"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-green-800 hover:text-green-900 transition-colors"
+                    >
+                      Go to Login
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M5 12h14" />
+                        <path d="m12 5 7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -189,8 +212,9 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
             </div>
           )}
 
-          {/* Form */}
-          <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
+          {/* Form - hide after success */}
+          {!success && (
+            <form className="mt-7 space-y-4" onSubmit={handleSubmit}>
             {/* Title */}
             <div className="auth-animate-fade-up auth-stagger-2">
               <label htmlFor="title" className="block text-xs font-medium uppercase tracking-wider mb-2" style={{ color: 'var(--auth-slate)' }}>
@@ -445,13 +469,16 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
               </Link>
             </div>
           </form>
+          )}
 
           {/* Footer */}
-          <div className="mt-8">
-            <p className="text-center text-xs" style={{ color: '#94a3b8' }}>
-              By registering, you agree to our community guidelines
-            </p>
-          </div>
+          {!success && (
+            <div className="mt-8">
+              <p className="text-center text-xs" style={{ color: '#94a3b8' }}>
+                By registering, you agree to our community guidelines
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>

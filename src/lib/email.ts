@@ -1,50 +1,55 @@
-import nodemailer from 'nodemailer'
+import { UseSend } from 'usesend-js'
 
-let transporter: nodemailer.Transporter | null = null
+const usesendApiKey = process.env.USESEND_API_KEY
+// Remove trailing /api if present - the SDK adds /api/v1 automatically
+const usesendBaseUrl = process.env.USESEND_BASE_URL?.replace(/\/api\/?$/, '')
 
-// Only configure transporter if credentials are present to avoid runtime errors in dev/demo
-if (process.env.SMTP_USER && process.env.SMTP_PASS) {
-  try {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    })
-  } catch (e) {
-    console.warn('Failed to initialize email transporter', e)
-    transporter = null
-  }
-} else {
-  console.warn('SMTP credentials not set; email notifications disabled')
+export const usesend = usesendApiKey ? new UseSend(usesendApiKey, usesendBaseUrl) : null
+
+export function isEmailConfigured(): boolean {
+  return usesend !== null
 }
 
 export async function sendApprovalNotification(email: string, userName: string) {
-  if (!transporter) {
-    return // silently skip in environments without SMTP
+  if (!isEmailConfigured()) {
+    console.warn('Usesend not configured; approval notification not sent')
+    return
   }
 
-  const mailOptions = {
-    from: process.env.SMTP_FROM || 'noreply@churchapp.com',
-    to: email,
-    subject: 'Your Account Has Been Approved',
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #333;">Account Approved</h2>
-        <p>Dear ${userName},</p>
-        <p>Your church account has been approved!</p>
-        <p>Click the button below to log in:</p>
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/login" style="background-color: #28a745; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">Login</a>
-        <p style="margin-top: 20px; color: #666;">God bless!</p>
-      </div>
-    `,
-  }
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const fromEmail = process.env.USESEND_FROM_EMAIL || 'noreply@christembassyireland.org'
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Christ Embassy Ireland'
 
   try {
-    await transporter.sendMail(mailOptions)
+    await usesend!.emails.send({
+      from: `${appName} <${fromEmail}>`,
+      to: email,
+      subject: 'Your Account Has Been Approved',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #1a365d; margin-bottom: 24px;">Account Approved</h2>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Dear ${userName},</p>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">
+            Your ${appName} account has been approved!
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="${appUrl}/login"
+               style="background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+                      color: white;
+                      padding: 14px 32px;
+                      text-decoration: none;
+                      border-radius: 8px;
+                      font-weight: 600;
+                      display: inline-block;">
+              Login to Your Account
+            </a>
+          </div>
+          <p style="color: #a0aec0; font-size: 12px;">
+            God bless!
+          </p>
+        </div>
+      `
+    })
   } catch (e) {
     console.warn('Failed to send approval email to', email, e)
   }

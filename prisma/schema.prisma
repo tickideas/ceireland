@@ -19,6 +19,8 @@ model User {
   email       String   @unique
   phone       String?
   approved    Boolean  @default(false)
+  emailVerified   Boolean  @default(false)
+  emailVerifiedAt DateTime?
   role        Role     @default(USER)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -34,6 +36,18 @@ model User {
   @@index([createdAt])
   @@index([approved, createdAt]) // Composite index for common admin queries
   @@map("users")
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([expiresAt])
+  @@map("email_verification_tokens")
 }
 
 model Service {

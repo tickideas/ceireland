@@ -3,6 +3,11 @@ import { prisma } from '@/lib/prisma'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
 import { registerSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import {
+  createVerificationToken,
+  sendVerificationEmail,
+  isDisposableEmail
+} from '@/lib/emailVerification'
+import {
   ValidationError,
   ConflictError,
   RateLimitError,
@@ -24,6 +29,12 @@ export async function POST(request: NextRequest) {
 
     if (honeypot && honeypot.length > 0) {
       const err = new ValidationError('Bot detected')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    // Check for disposable email addresses
+    if (isDisposableEmail(email)) {
+      const err = new ValidationError('Please use a valid email address')
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
@@ -56,17 +67,25 @@ export async function POST(request: NextRequest) {
         lastName,
         email,
         phone,
-        approved: false
+        approved: true,
+        emailVerified: false
       }
     })
 
-    return NextResponse.json({ 
-      message: 'Registration successful. Please wait for admin approval.',
+    // Generate and send verification email
+    const token = await createVerificationToken(email)
+    const emailResult = await sendVerificationEmail(email, `${name} ${lastName}`, token)
+
+    return NextResponse.json({
+      message: emailResult.success
+        ? 'Registration successful! Please check your email to verify your account.'
+        : 'Registration successful! Please contact support to activate your account.',
       user: {
         id: user.id,
         email: user.email,
         name: user.name
-      }
+      },
+      requiresVerification: true
     })
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error')
