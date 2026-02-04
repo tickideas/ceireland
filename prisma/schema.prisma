@@ -101,12 +101,13 @@ model Banner {
 }
 
 model StreamSettings {
-  id          String   @id @default(cuid())
-  streamUrl   String?
-  posterUrl   String?
-  isActive    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String    @id @default(cuid())
+  streamUrl        String?
+  posterUrl        String?
+  isActive         Boolean   @default(false)
+  scheduledEndTime DateTime? // Optional: auto-deactivate stream at this time
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@map("stream_settings")
 }

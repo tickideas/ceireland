@@ -20,7 +20,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       streamUrl: streamSettings?.streamUrl || '',
       posterUrl: streamSettings?.posterUrl || '',
-      isActive: streamSettings?.isActive || false
+      isActive: streamSettings?.isActive || false,
+      scheduledEndTime: streamSettings?.scheduledEndTime || null
     })
   } catch (error) {
     console.error('Get stream settings error:', error)
@@ -40,7 +41,10 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { streamUrl, posterUrl, isActive } = await request.json()
+    const { streamUrl, posterUrl, isActive, scheduledEndTime } = await request.json()
+
+    // Parse scheduledEndTime if provided
+    const endTime = scheduledEndTime ? new Date(scheduledEndTime) : null
 
     // Get existing settings or create new one
     let streamSettings = await prisma.streamSettings.findFirst()
@@ -52,7 +56,8 @@ export async function PUT(request: NextRequest) {
         data: {
           streamUrl: streamUrl || null,
           posterUrl: posterUrl || null,
-          isActive: isActive ?? false
+          isActive: isActive ?? false,
+          scheduledEndTime: endTime
         }
       })
     } else {
@@ -61,7 +66,8 @@ export async function PUT(request: NextRequest) {
         data: {
           streamUrl: streamUrl || null,
           posterUrl: posterUrl || null,
-          isActive: isActive ?? false
+          isActive: isActive ?? false,
+          scheduledEndTime: endTime
         }
       })
     }
@@ -70,7 +76,8 @@ export async function PUT(request: NextRequest) {
       message: 'Stream settings updated successfully',
       streamUrl: streamSettings.streamUrl,
       posterUrl: streamSettings.posterUrl,
-      isActive: streamSettings.isActive
+      isActive: streamSettings.isActive,
+      scheduledEndTime: streamSettings.scheduledEndTime
     })
   } catch (error) {
     console.error('Update stream settings error:', error)

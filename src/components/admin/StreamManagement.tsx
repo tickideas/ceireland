@@ -1,19 +1,21 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Radio, Image, Check, X, ExternalLink, Loader2, AlertCircle } from 'lucide-react'
+import { Radio, Image, Check, X, ExternalLink, Loader2, AlertCircle, Clock } from 'lucide-react'
 
 interface StreamSettings {
   streamUrl: string
   posterUrl: string
   isActive: boolean
+  scheduledEndTime: string | null
 }
 
 export default function StreamManagement() {
   const [settings, setSettings] = useState<StreamSettings>({
     streamUrl: '',
     posterUrl: '',
-    isActive: false
+    isActive: false,
+    scheduledEndTime: null
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -198,6 +200,37 @@ export default function StreamManagement() {
             )}
           </div>
 
+          {/* Scheduled End Time */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-slate-700">
+              Scheduled End Time <span className="text-slate-400 font-normal">(Optional)</span>
+            </label>
+            <div className="relative">
+              <input
+                type="datetime-local"
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-colors pr-10"
+                value={settings.scheduledEndTime ? new Date(settings.scheduledEndTime).toISOString().slice(0, 16) : ''}
+                onChange={(e) => setSettings({ 
+                  ...settings, 
+                  scheduledEndTime: e.target.value ? new Date(e.target.value).toISOString() : null 
+                })}
+              />
+              <Clock className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+            </div>
+            <p className="text-xs text-slate-500">
+              Stream will automatically go offline at this time. Leave empty for manual control.
+            </p>
+            {settings.scheduledEndTime && (
+              <button
+                type="button"
+                onClick={() => setSettings({ ...settings, scheduledEndTime: null })}
+                className="text-xs text-red-600 hover:text-red-700 font-medium"
+              >
+                Clear end time
+              </button>
+            )}
+          </div>
+
           {/* Stream Active Toggle */}
           <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
             <div className="flex items-center space-x-3">
@@ -265,7 +298,7 @@ export default function StreamManagement() {
           <h3 className="text-lg font-semibold text-slate-900">Current Configuration</h3>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <div className="p-4 bg-slate-50 rounded-xl">
               <p className="text-sm text-slate-500 mb-1">Stream URL</p>
               <p className="font-medium text-slate-900 truncate">
@@ -297,6 +330,16 @@ export default function StreamManagement() {
               }`}>
                 {settings.isActive ? 'Active' : 'Inactive'}
               </span>
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <p className="text-sm text-slate-500 mb-1">Scheduled End</p>
+              <p className="font-medium text-slate-900">
+                {settings.scheduledEndTime ? (
+                  new Date(settings.scheduledEndTime).toLocaleString()
+                ) : (
+                  <span className="text-slate-400">Not set</span>
+                )}
+              </p>
             </div>
           </div>
         </div>
