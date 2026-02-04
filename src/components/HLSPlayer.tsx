@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type Hls from 'hls.js'
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -42,6 +42,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const containerRef = useRef<HTMLDivElement>(null)
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const progressRef = useRef<HTMLDivElement>(null)
+  const lastTimeUpdateRef = useRef(0)
 
   useEffect(() => {
     if (isDev) console.log('[HLSPlayer] Component mounted')
@@ -165,6 +166,9 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     const handleTimeUpdate = () => {
       const v = videoRef.current
       if (!v) return
+      const now = performance.now()
+      if (now - lastTimeUpdateRef.current < 250) return
+      lastTimeUpdateRef.current = now
       setCurrentTime(v.currentTime)
       // Update buffered
       if (v.buffered.length > 0) {

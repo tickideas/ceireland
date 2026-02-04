@@ -124,7 +124,39 @@ export const streamSettingsSchema = z.object({
     .optional()
     .nullable(),
   isActive: z.boolean().default(false),
+  scheduledEndTime: z
+    .string()
+    .datetime({ message: 'Invalid end time format' })
+    .optional()
+    .nullable(),
 })
+
+/**
+ * Stream scheduling schemas
+ */
+const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/
+
+export const streamScheduleSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  startTime: z.string().regex(timeRegex, 'Time must be in HH:mm format'),
+  endTime: z.string().regex(timeRegex, 'Time must be in HH:mm format'),
+  label: z.string().max(100).optional().nullable(),
+  isActive: z.boolean().optional(),
+})
+
+export const streamScheduleUpdateSchema = streamScheduleSchema.partial()
+
+export const streamEventSchema = z.object({
+  title: z.string().min(1).max(200),
+  startDateTime: z.string().datetime({ message: 'Invalid start date format' }),
+  endDateTime: z.string().datetime({ message: 'Invalid end date format' }),
+  isActive: z.boolean().optional(),
+}).refine((data) => new Date(data.endDateTime) > new Date(data.startDateTime), {
+  message: 'endDateTime must be after startDateTime',
+  path: ['endDateTime'],
+})
+
+export const streamEventUpdateSchema = streamEventSchema.partial()
 
 /**
  * Service settings schemas

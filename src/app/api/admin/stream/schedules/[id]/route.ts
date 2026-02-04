@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { streamScheduleUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, errorToResponse } from '@/lib/errors'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
 
 // PUT update schedule
 export async function PUT(
@@ -18,29 +21,27 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
+    }
+
     const { id } = await params
-    const { dayOfWeek, startTime, endTime, label, isActive } = await request.json()
-
-    // Validate time format if provided
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/
-    if (startTime && !timeRegex.test(startTime)) {
-      return NextResponse.json({ error: 'startTime must be in HH:mm format' }, { status: 400 })
-    }
-    if (endTime && !timeRegex.test(endTime)) {
-      return NextResponse.json({ error: 'endTime must be in HH:mm format' }, { status: 400 })
+    const body = await request.json()
+    const validation = safeValidate(streamScheduleUpdateSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Validate dayOfWeek if provided
-    if (dayOfWeek !== undefined && (dayOfWeek < 0 || dayOfWeek > 6)) {
-      return NextResponse.json({ error: 'dayOfWeek must be 0-6' }, { status: 400 })
-    }
+    const { dayOfWeek, startTime, endTime, label, isActive } = validation.data
 
     const schedule = await prisma.streamSchedule.update({
       where: { id },
       data: {
         ...(dayOfWeek !== undefined && { dayOfWeek }),
-        ...(startTime && { startTime }),
-        ...(endTime && { endTime }),
+        ...(startTime !== undefined && { startTime }),
+        ...(endTime !== undefined && { endTime }),
         ...(label !== undefined && { label: label || null }),
         ...(isActive !== undefined && { isActive })
       }
@@ -67,6 +68,11 @@ export async function DELETE(
     const payload = verifyToken(token)
     if (!payload || payload.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
     }
 
     const { id } = await params

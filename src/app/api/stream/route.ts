@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+const CACHE_TTL_MS = 10_000
+let streamCache: { data: unknown; expiresAt: number } | null = null
+
 // Helper to check if current time falls within a schedule
 function isWithinSchedule(schedule: { dayOfWeek: number; startTime: string; endTime: string }): boolean {
   const now = new Date()
@@ -72,6 +75,10 @@ function getDayName(day: number): string {
 
 export async function GET(_request: NextRequest) {
   try {
+    if (streamCache && streamCache.expiresAt > Date.now()) {
+      return NextResponse.json(streamCache.data)
+    }
+
     // Get stream settings, schedules, and events in parallel
     const [streamSettings, schedules, events] = await Promise.all([
       prisma.streamSettings.findFirst(),
@@ -80,14 +87,16 @@ export async function GET(_request: NextRequest) {
     ])
 
     if (!streamSettings) {
-      return NextResponse.json({
+      const data = {
         streamUrl: '',
         posterUrl: '',
         isActive: false,
         activeSource: 'none',
         activeLabel: null,
         nextScheduled: null
-      })
+      }
+      streamCache = { data, expiresAt: Date.now() + CACHE_TTL_MS }
+      return NextResponse.json(data)
     }
 
     let isActive = false
@@ -134,14 +143,18 @@ export async function GET(_request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const data = {
       streamUrl: streamSettings.streamUrl || '',
       posterUrl: streamSettings.posterUrl || '',
       isActive,
       activeSource,
       activeLabel,
       nextScheduled
-    })
+    }
+
+    streamCache = { data, expiresAt: Date.now() + CACHE_TTL_MS }
+
+    return NextResponse.json(data)
   } catch (error) {
     console.error('Get stream settings error:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

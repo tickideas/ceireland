@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { streamEventSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, errorToResponse } from '@/lib/errors'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
 
 // GET all events
 export async function GET(request: NextRequest) {
@@ -13,6 +16,11 @@ export async function GET(request: NextRequest) {
     const payload = verifyToken(token)
     if (!payload || payload.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
     }
 
     // Get all events, ordered by start date
@@ -40,30 +48,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { title, startDateTime, endDateTime } = await request.json()
-
-    // Validate required fields
-    if (!title || !startDateTime || !endDateTime) {
-      return NextResponse.json({ error: 'title, startDateTime, and endDateTime are required' }, { status: 400 })
+    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
+    if (!rateLimitResult.success) {
+      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
     }
 
-    const start = new Date(startDateTime)
-    const end = new Date(endDateTime)
-
-    // Validate dates
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return NextResponse.json({ error: 'Invalid date format' }, { status: 400 })
+    const body = await request.json()
+    const validation = safeValidate(streamEventSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    if (end <= start) {
-      return NextResponse.json({ error: 'endDateTime must be after startDateTime' }, { status: 400 })
-    }
+    const { title, startDateTime, endDateTime } = validation.data
 
     const event = await prisma.streamEvent.create({
       data: {
         title,
-        startDateTime: start,
-        endDateTime: end
+        startDateTime: new Date(startDateTime),
+        endDateTime: new Date(endDateTime)
       }
     })
 
