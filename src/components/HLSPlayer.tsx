@@ -679,13 +679,15 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
           break
         case 'arrowright':
           e.preventDefault()
-          if (videoRef.current) {
+          // Only seek if not a live stream
+          if (videoRef.current && duration > 0 && isFinite(duration)) {
             videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 10, duration)
           }
           break
         case 'arrowleft':
           e.preventDefault()
-          if (videoRef.current) {
+          // Only seek if not a live stream
+          if (videoRef.current && duration > 0 && isFinite(duration)) {
             videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0)
           }
           break
@@ -825,30 +827,39 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         <div 
           className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
-          {/* Progress Bar */}
-          <div 
-            ref={progressRef}
-            className="relative h-1 mx-4 mb-2 cursor-pointer group/progress"
-            onClick={handleProgressClick}
-          >
-            {/* Background */}
-            <div className="absolute inset-0 bg-white/30 rounded-full" />
-            {/* Buffered */}
+          {/* Progress Bar - only show for non-live/seekable content */}
+          {duration > 0 && isFinite(duration) && (
             <div 
-              className="absolute inset-y-0 left-0 bg-white/50 rounded-full transition-all"
-              style={{ width: `${duration ? (buffered / duration) * 100 : 0}%` }}
-            />
-            {/* Progress */}
-            <div 
-              className="absolute inset-y-0 left-0 bg-red-500 rounded-full transition-all"
-              style={{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }}
+              ref={progressRef}
+              className="relative h-1 hover:h-1.5 mx-4 mb-2 cursor-pointer group/progress transition-all"
+              onClick={handleProgressClick}
             >
-              {/* Progress handle */}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-lg" />
+              {/* Background */}
+              <div className="absolute inset-0 bg-white/30 rounded-full" />
+              {/* Buffered */}
+              <div 
+                className="absolute inset-y-0 left-0 bg-white/50 rounded-full"
+                style={{ width: `${(buffered / duration) * 100}%` }}
+              />
+              {/* Progress */}
+              <div 
+                className="absolute inset-y-0 left-0 bg-red-500 rounded-full"
+                style={{ width: `${(currentTime / duration) * 100}%` }}
+              >
+                {/* Progress handle */}
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-red-500 rounded-full scale-0 group-hover/progress:scale-100 transition-transform shadow-lg" />
+              </div>
             </div>
-            {/* Hover expand */}
-            <div className="absolute inset-x-0 -inset-y-1 group-hover/progress:inset-y-0 transition-all" />
-          </div>
+          )}
+
+          {/* Live indicator bar - shown for live streams */}
+          {(!duration || !isFinite(duration) || duration === 0) && (
+            <div className="relative h-1 mx-4 mb-2">
+              <div className="absolute inset-0 bg-red-500/50 rounded-full overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-red-400 to-transparent animate-pulse" />
+              </div>
+            </div>
+          )}
 
           {/* Controls Row */}
           <div className="flex items-center gap-2 sm:gap-4 px-4 pb-3">
@@ -909,7 +920,14 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
 
             {/* Time */}
             <div className="text-white text-xs sm:text-sm font-medium tabular-nums">
-              {formatTime(currentTime)} / {formatTime(duration)}
+              {duration > 0 && isFinite(duration) ? (
+                <>{formatTime(currentTime)} / {formatTime(duration)}</>
+              ) : (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  LIVE
+                </span>
+              )}
             </div>
 
             {/* Spacer */}
