@@ -573,7 +573,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
             </div>
             <h3 className="text-base sm:text-xl font-semibold mb-1.5 sm:mb-2">Stream Currently Offline</h3>
             <p className="text-gray-400 text-xs sm:text-sm max-w-xs mx-auto">
-              There is no active service at this time. Please check back soon or view our schedule below.
+              There is no active service at this time.
             </p>
           </div>
         </div>
