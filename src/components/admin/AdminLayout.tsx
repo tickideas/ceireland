@@ -89,7 +89,13 @@ export default function AdminLayout({ activeTab, onTabChange, children }: AdminL
     }
 
     window.fetch = (input, init) => {
-      const url = typeof input === 'string' ? input : input.url
+      const url = typeof input === 'string'
+        ? input
+        : input instanceof URL
+          ? input.toString()
+          : input instanceof Request
+            ? input.url
+            : String(input)
       const method = init?.method ? init.method.toUpperCase() : 'GET'
       const isAdminApi = url.includes('/api/admin')
       const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
