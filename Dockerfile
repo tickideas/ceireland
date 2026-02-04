@@ -2,6 +2,9 @@
 
 FROM node:22-alpine AS base
 
+# Pin npm to avoid build notices and ensure consistent behavior
+RUN npm install -g npm@11.8.0
+
 # Install dependencies only when needed
 FROM base AS deps
 RUN apk add --no-cache libc6-compat openssl
