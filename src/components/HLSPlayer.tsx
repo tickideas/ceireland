@@ -34,6 +34,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const retryCountRef = useRef(0)
   const isActiveRef = useRef(false)
   const streamOfflineRef = useRef(false)
+  const countdownEndedRef = useRef(false)
   
   // Custom controls state
   const [currentTime, setCurrentTime] = useState(0)
@@ -609,33 +610,61 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     return `${m}:${s.toString().padStart(2, '0')}`
   }
 
-  const formatCountdown = (targetIso: string | null): string => {
-    if (!targetIso) return ''
+  const formatCountdown = (targetIso: string | null): { text: string; ended: boolean } => {
+    if (!targetIso) return { text: '', ended: false }
     const target = new Date(targetIso)
     const now = new Date()
     const diff = target.getTime() - now.getTime()
-    if (diff <= 0) return 'Starting now'
+    if (diff <= 0) return { text: 'Starting now', ended: true }
 
     const totalSeconds = Math.floor(diff / 1000)
     const days = Math.floor(totalSeconds / 86400)
     const hours = Math.floor((totalSeconds % 86400) / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
 
-    return `${days}d ${hours}h ${minutes}m`
+    // Under 1 minute: show seconds only
+    if (totalSeconds < 60) {
+      return { text: `${seconds}s`, ended: false }
+    }
+
+    return { text: `${days}d ${hours}h ${minutes}m`, ended: false }
   }
 
   useEffect(() => {
     if (!nextScheduled || isActive) {
       setCountdown('')
+      countdownEndedRef.current = false
       return
     }
 
-    setCountdown(formatCountdown(nextScheduled))
-    const interval = setInterval(() => {
-      setCountdown(formatCountdown(nextScheduled))
-    }, 1000)
+    // Reset flag when nextScheduled changes
+    countdownEndedRef.current = false
+    let pollInterval: NodeJS.Timeout | null = null
 
-    return () => clearInterval(interval)
+    const updateCountdown = () => {
+      const result = formatCountdown(nextScheduled)
+      setCountdown(result.text)
+      
+      // When countdown ends, start polling to switch to player
+      if (result.ended && !countdownEndedRef.current) {
+        countdownEndedRef.current = true
+        fetchStreamSettings()
+        
+        // Poll every 10 seconds until stream becomes active
+        pollInterval = setInterval(() => {
+          fetchStreamSettings()
+        }, 10000)
+      }
+    }
+
+    updateCountdown()
+    const interval = setInterval(updateCountdown, 1000)
+
+    return () => {
+      clearInterval(interval)
+      if (pollInterval) clearInterval(pollInterval)
+    }
   }, [nextScheduled, isActive])
 
   // Toggle fullscreen
