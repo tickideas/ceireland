@@ -235,7 +235,7 @@ export default function AnalyticsDashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         <ChartCard title="Daily Attendance">
           <div className="h-[250px] sm:h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
               <BarChart data={analytics.serviceData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="date" tickFormatter={formatIsoToDMY} tick={{ fontSize: 12, fill: '#64748b' }} />
@@ -260,7 +260,7 @@ export default function AnalyticsDashboard() {
             </div>
           ) : (
             <div className="h-[250px] sm:h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
                 <AreaChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="attendanceGradient" x1="0" y1="0" x2="0" y2="1">
@@ -291,7 +291,7 @@ export default function AnalyticsDashboard() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
         <ChartCard title="Member Distribution">
           <div className="h-[250px] sm:h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
               <PieChart>
                 <Pie
                   data={analytics.roleDistribution}
@@ -351,7 +351,7 @@ export default function AnalyticsDashboard() {
           </div>
         ) : (
           <div className="h-[280px] sm:h-[340px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
               <LineChart data={series} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: '#64748b' }} />

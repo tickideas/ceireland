@@ -22,17 +22,10 @@ export function useOpenEvent() {
     try {
       const response = await fetch('/api/open-events/current')
       
-      console.log('Debug: Open event API response', {
-        status: response.status,
-        ok: response.ok
-      })
-      
       if (response.ok) {
         const data = await response.json()
-        console.log('Debug: Open event API data', data)
         setActiveEvent(data.hasActiveEvent ? data.activeEvent : null)
       } else {
-        console.error('Debug: Open event API error', response.status)
         setActiveEvent(null)
       }
     } catch (error) {

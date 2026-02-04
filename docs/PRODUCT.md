@@ -17,7 +17,7 @@ Church App is a modern online church platform that lets congregants register and
 ## Key Features
 - Authentication: Magic-link style login (email initiated), JWT-backed sessions.
 - Open Events: Temporary public access during special events without authentication required.
-- Streaming: HLS playback with native support or hls.js fallback.
+- Streaming: HLS playback with native support or hls.js fallback. Intelligent offline detection with auto-reconnect when stream becomes available.
 - Admin Console: User approvals, stream settings, service info, banner management, user import, analytics, reports, and open events management.
 - Devotional: Daily Rhapsody content fetched and displayed to members.
 - Attendance Tracking: Automatic tracking for both authenticated members and anonymous guests during open events.

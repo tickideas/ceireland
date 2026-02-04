@@ -106,9 +106,15 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
 - Requirements:
   - HLS `.m3u8` must be accessible over HTTPS.
   - If hosted on a different domain, ensure CORS/headers permit playback.
+- Stream Offline Handling:
+  - When a service is marked active but the HLS feed is unavailable, viewers see a friendly "Stream Starting Soon" message instead of an error.
+  - The player automatically retries every 30 seconds to check if the stream has come online.
+  - Once the stream becomes available, playback starts automatically without user intervention.
+  - The LIVE badge only appears when the stream is actually playing, not when offline.
+  - This allows admins to mark a service as "active" before the actual stream feed begins.
 - Debugging playback:
   - Check DevTools Network for `.m3u8` and `.ts` segment responses.
-  - `HLSPlayer` logs lifecycle events to the console.
+  - `HLSPlayer` logs lifecycle events to the console (in development mode).
   - Test the URL in a known HLS player (e.g., Safari or an online HLS tester) to confirm the stream.
 
 ## Devotional (Rhapsody) Endpoint

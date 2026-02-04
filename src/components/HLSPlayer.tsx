@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import type Hls from 'hls.js'
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -20,12 +20,17 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const abortControllerRef = useRef<AbortController | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState('')
+  const [streamOffline, setStreamOffline] = useState(false)
   const [streamUrl, setStreamUrl] = useState<string | null>(null)
   const [isActive, setIsActive] = useState(false)
   const [loading, setLoading] = useState(true)
   const [isMuted, setIsMuted] = useState(true)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [viewerCount, setViewerCount] = useState<number | null>(null)
+  const retryIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const retryCountRef = useRef(0)
+  const isActiveRef = useRef(false)
+  const streamOfflineRef = useRef(false)
 
   useEffect(() => {
     if (isDev) console.log('[HLSPlayer] Component mounted')
@@ -43,6 +48,10 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         clearInterval(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
       }
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current)
+        retryIntervalRef.current = null
+      }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
         abortControllerRef.current = null
@@ -57,6 +66,11 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     const handlePlay = () => {
       if (isDev) console.log('[HLSPlayer] Video play event fired')
       setIsPlaying(true)
+      // Clear offline state when playback succeeds
+      setStreamOffline(false)
+      streamOfflineRef.current = false
+      setError('')
+      stopRetryLoop()
       if (!checkedInRef.current) {
         checkedInRef.current = true
         fetch('/api/attendance/checkin', { method: 'POST' }).catch((e) => {
@@ -69,6 +83,12 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       setIsPlaying(false)
     }
     const handleError = () => {
+      // If already in offline state, don't process further errors
+      if (streamOfflineRef.current) {
+        if (isDev) console.log('[HLSPlayer] Ignoring video error - already in offline state')
+        return
+      }
+
       const video = videoRef.current
       const mediaError = video?.error || null
       const errorCode = mediaError?.code ?? null
@@ -87,11 +107,25 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
           currentSrc: video?.currentSrc,
           readyState: video?.readyState,
           networkState: video?.networkState,
-          hasHlsInstance: !!hlsRef.current
+          hasHlsInstance: !!hlsRef.current,
+          isActive: isActiveRef.current
         })
       }
 
-      setError('Failed to load video. Please check your connection.')
+      // When stream is marked as active, treat most errors as "stream offline"
+      // This means the feed is likely down, not a user-side error
+      // Only show error for abort (user cancelled) or decode errors (corrupt stream)
+      if (isActiveRef.current && errorCode !== 1 && errorCode !== 3) {
+        setStreamOffline(true)
+        streamOfflineRef.current = true
+        setError('')
+        startRetryLoop()
+      } else if (errorCode === 1) {
+        // Abort error - user cancelled, don't show error
+        return
+      } else {
+        setError('Failed to load video. Please check your connection.')
+      }
     }
     const emitResize = () => {
       if (typeof window !== 'undefined') {
@@ -126,9 +160,20 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       video.removeEventListener('canplay', handleCanPlay)
       video.removeEventListener('volumechange', handleVolumeChange)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // Keep refs in sync with state
   useEffect(() => {
+    isActiveRef.current = isActive
+  }, [isActive])
+
+  useEffect(() => {
+    streamOfflineRef.current = streamOffline
+  }, [streamOffline])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const currentSrc = getVideoSrc()
     if (isDev) console.log('[HLSPlayer] Video src changed to:', currentSrc)
   }, [streamUrl, isActive, src])
@@ -253,21 +298,28 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
               if (isDev) console.error('[HLSPlayer] HLS fatal error:', info)
               switch (data?.type) {
                 case Hls.ErrorTypes.NETWORK_ERROR:
-                  if (isDev) console.error('[HLSPlayer] Network error - trying alternative approach')
+                  if (isDev) console.error('[HLSPlayer] Network error - stream may be offline')
                   hls.destroy()
                   hlsRef.current = null
-                  video.src = currentSrc
-                  video.load()
+                  // Mark stream as offline and start retry loop
+                  setStreamOffline(true)
+                  streamOfflineRef.current = true
+                  setError('')
+                  startRetryLoop()
                   break
                 case Hls.ErrorTypes.MEDIA_ERROR:
                   if (isDev) console.error('[HLSPlayer] Media error - trying to recover')
                   hls.recoverMediaError()
                   break
                 default:
-                  if (isDev) console.error('[HLSPlayer] Fatal HLS error - destroying instance')
+                  if (isDev) console.error('[HLSPlayer] Fatal HLS error - stream may be offline')
                   hls.destroy()
                   hlsRef.current = null
-                  setError('Failed to load HLS stream. The stream may not be accessible from this domain.')
+                  // Treat as offline rather than error
+                  setStreamOffline(true)
+                  streamOfflineRef.current = true
+                  setError('')
+                  startRetryLoop()
               }
             } else {
               if (isDev) console.warn('[HLSPlayer] HLS non-fatal error:', info)
@@ -348,6 +400,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         if (isDev) console.log('[HLSPlayer] Stream settings fetched:', { streamUrl: data.streamUrl, isActive: data.isActive, posterUrl: data.posterUrl })
         setStreamUrl(data.streamUrl)
         setIsActive(data.isActive)
+        isActiveRef.current = data.isActive // Sync ref immediately
         setPosterUrl(data.posterUrl || null)
       }
     } catch (error) {
@@ -359,6 +412,74 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     } finally {
       setLoading(false)
     }
+  }
+
+  const startRetryLoop = () => {
+    // Clear any existing retry interval
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current)
+    }
+
+    retryCountRef.current = 0
+    
+    // Retry every 30 seconds (gentle on server)
+    retryIntervalRef.current = setInterval(() => {
+      retryCountRef.current += 1
+      if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
+      
+      // Try to reload the stream
+      retryStream()
+    }, 30000)
+  }
+
+  const retryStream = async () => {
+    const video = videoRef.current
+    if (!video) return
+
+    const currentSrc = getVideoSrc()
+    if (!currentSrc) return
+
+    try {
+      // First check if stream URL is accessible
+      const response = await fetch(currentSrc, { method: 'HEAD', mode: 'no-cors' })
+      
+      if (isDev) console.log('[HLSPlayer] Stream check completed, attempting reload')
+      
+      // Clear offline state and try to reload
+      setStreamOffline(false)
+      streamOfflineRef.current = false
+      setError('')
+      
+      // Destroy existing HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+      
+      // Clear retry interval if successful
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current)
+        retryIntervalRef.current = null
+      }
+
+      // Re-trigger the stream setup by updating a state
+      // This will cause the useEffect to re-run
+      setStreamUrl(prev => {
+        // Force a re-render by setting to null then back
+        setTimeout(() => setStreamUrl(currentSrc), 100)
+        return null
+      })
+    } catch {
+      if (isDev) console.log('[HLSPlayer] Stream still offline, will retry...')
+    }
+  }
+
+  const stopRetryLoop = () => {
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current)
+      retryIntervalRef.current = null
+    }
+    retryCountRef.current = 0
   }
 
   const getVideoSrc = () => {
@@ -436,6 +557,33 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         </div>
       )}
 
+      {/* Stream Offline State - shown when service is active but stream feed is unavailable */}
+      {streamOffline && isActive && !error && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 text-white">
+          <div className="text-center px-4 sm:px-6">
+            <div className="w-14 h-14 sm:w-20 sm:h-20 mx-auto mb-4 sm:mb-6 bg-slate-700 rounded-full flex items-center justify-center">
+              <svg className="w-7 h-7 sm:w-10 sm:h-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h3 className="text-base sm:text-xl font-semibold mb-1.5 sm:mb-2">Stream Starting Soon</h3>
+            <p className="text-slate-400 text-xs sm:text-sm max-w-xs mx-auto mb-4">
+              The live stream is not available yet. We&apos;ll automatically connect when it goes live.
+            </p>
+            <div className="flex items-center justify-center gap-2 text-slate-500 text-xs sm:text-sm mb-4">
+              <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse"></div>
+              <span>Checking for stream...</span>
+            </div>
+            <button
+              onClick={() => retryStream()}
+              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors"
+            >
+              Try Now
+            </button>
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-red-900 text-white p-3 sm:p-4">
           <div className="text-center">
@@ -447,7 +595,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
 
       <video
         ref={videoRef}
-        className={`w-full h-full ${!isActive && !loading ? 'hidden' : ''}`}
+        className={`w-full h-full ${(!isActive && !loading) || streamOffline ? 'hidden' : ''}`}
         controls
         preload="metadata"
         poster={getPoster()}
@@ -457,7 +605,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       </video>
 
       {/* Custom Play Overlay */}
-      {!isPlaying && !error && !loading && isActive && (
+      {!isPlaying && !error && !loading && isActive && !streamOffline && (
         <div
           className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black bg-opacity-30 hover:bg-opacity-20 active:bg-opacity-10 transition-all touch-manipulation"
           onClick={togglePlay}
@@ -471,7 +619,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       )}
 
       {/* Unmute Overlay */}
-      {isPlaying && isMuted && !error && !loading && (
+      {isPlaying && isMuted && !error && !loading && !streamOffline && (
         <div
           className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/0 touch-manipulation"
           onClick={() => {
@@ -490,8 +638,8 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         </div>
       )}
 
-      {/* Live Indicator with Viewer Count */}
-      {isActive && (
+      {/* Live Indicator with Viewer Count - only show when actually streaming */}
+      {isActive && !streamOffline && (
         <div className="absolute top-2 right-2 sm:top-4 sm:right-4 bg-red-600 text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-bold animate-pulse flex items-center justify-center">
           {viewerCount !== null && viewerCount > 0 ? (
             <span className="whitespace-nowrap">LIVE <span className="hidden sm:inline">• {viewerCount} {viewerCount === 1 ? 'viewer' : 'viewers'}</span></span>
