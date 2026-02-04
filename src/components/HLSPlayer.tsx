@@ -112,17 +112,17 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         })
       }
 
-      // When stream is marked as active, treat most errors as "stream offline"
-      // This means the feed is likely down, not a user-side error
-      // Only show error for abort (user cancelled) or decode errors (corrupt stream)
-      if (isActiveRef.current && errorCode !== 1 && errorCode !== 3) {
+      // When stream is marked as active, treat ALL errors as "stream offline"
+      // This means the feed ended or is unavailable, not a user-side error
+      // Only show actual error when service is not active (likely a config issue)
+      if (isActiveRef.current) {
+        // Abort errors (code 1) are usually from source changes, ignore silently
+        if (errorCode === 1) return
+        
         setStreamOffline(true)
         streamOfflineRef.current = true
         setError('')
         startRetryLoop()
-      } else if (errorCode === 1) {
-        // Abort error - user cancelled, don't show error
-        return
       } else {
         setError('Failed to load video. Please check your connection.')
       }
@@ -135,6 +135,16 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     const handleLoadedMetadata = () => { if (isDev) console.log('[HLSPlayer] Video loadedmetadata'); emitResize() }
     const handleLoadedData = () => { if (isDev) console.log('[HLSPlayer] Video loadeddata'); emitResize() }
     const handleCanPlay = () => { if (isDev) console.log('[HLSPlayer] Video canplay'); emitResize() }
+    const handleEnded = () => {
+      if (isDev) console.log('[HLSPlayer] Video ended')
+      // If service is still active but stream ended, show offline state
+      if (isActiveRef.current) {
+        setStreamOffline(true)
+        streamOfflineRef.current = true
+        setIsPlaying(false)
+        startRetryLoop()
+      }
+    }
     const handleVolumeChange = () => {
       const v = videoRef.current
       if (!v) return
@@ -146,6 +156,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     video.addEventListener('play', handlePlay)
     video.addEventListener('pause', handlePause)
     video.addEventListener('error', handleError)
+    video.addEventListener('ended', handleEnded)
     video.addEventListener('loadedmetadata', handleLoadedMetadata)
     video.addEventListener('loadeddata', handleLoadedData)
     video.addEventListener('canplay', handleCanPlay)
@@ -155,6 +166,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       video.removeEventListener('play', handlePlay)
       video.removeEventListener('pause', handlePause)
       video.removeEventListener('error', handleError)
+      video.removeEventListener('ended', handleEnded)
       video.removeEventListener('loadedmetadata', handleLoadedMetadata)
       video.removeEventListener('loadeddata', handleLoadedData)
       video.removeEventListener('canplay', handleCanPlay)
@@ -309,7 +321,17 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
                   break
                 case Hls.ErrorTypes.MEDIA_ERROR:
                   if (isDev) console.error('[HLSPlayer] Media error - trying to recover')
-                  hls.recoverMediaError()
+                  try {
+                    hls.recoverMediaError()
+                  } catch {
+                    // Recovery failed, treat as offline
+                    hls.destroy()
+                    hlsRef.current = null
+                    setStreamOffline(true)
+                    streamOfflineRef.current = true
+                    setError('')
+                    startRetryLoop()
+                  }
                   break
                 default:
                   if (isDev) console.error('[HLSPlayer] Fatal HLS error - stream may be offline')
