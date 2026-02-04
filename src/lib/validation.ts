@@ -156,7 +156,18 @@ export const streamEventSchema = z.object({
   path: ['endDateTime'],
 })
 
-export const streamEventUpdateSchema = streamEventSchema.partial()
+export const streamEventUpdateSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  startDateTime: z.string().datetime({ message: 'Invalid start date format' }).optional(),
+  endDateTime: z.string().datetime({ message: 'Invalid end date format' }).optional(),
+  isActive: z.boolean().optional(),
+}).refine((data) => {
+  if (!data.startDateTime || !data.endDateTime) return true
+  return new Date(data.endDateTime) > new Date(data.startDateTime)
+}, {
+  message: 'endDateTime must be after startDateTime',
+  path: ['endDateTime'],
+})
 
 /**
  * Service settings schemas
