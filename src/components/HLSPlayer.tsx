@@ -771,10 +771,10 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
             <p className="text-gray-400 text-xs sm:text-sm max-w-xs mx-auto">
               There is no active service at this time.
             </p>
-            {nextScheduled && nextScheduledLabel && (
+            {nextScheduled && (
               <div className="mt-4 space-y-2">
                 <p className="text-xs sm:text-sm text-gray-300 font-medium">
-                  Next: {nextScheduledLabel}
+                  Next: {nextScheduledLabel || 'Service'}
                 </p>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-xs sm:text-sm font-semibold text-white">
                   <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
