@@ -79,6 +79,38 @@ export default function AdminLayout({ activeTab, onTabChange, children }: AdminL
     }
   }, [sidebarOpen])
 
+  // Inject CSRF token into admin API requests
+  useEffect(() => {
+    const originalFetch = window.fetch.bind(window)
+
+    const getCsrfToken = () => {
+      const match = document.cookie.match(/(?:^|; )csrf-token=([^;]+)/)
+      return match ? decodeURIComponent(match[1]) : null
+    }
+
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input.url
+      const method = init?.method ? init.method.toUpperCase() : 'GET'
+      const isAdminApi = url.includes('/api/admin')
+      const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)
+
+      if (isAdminApi && isStateChanging) {
+        const token = getCsrfToken()
+        const headers = new Headers(init?.headers || {})
+        if (token) {
+          headers.set('x-csrf-token', token)
+        }
+        return originalFetch(input, { ...init, headers })
+      }
+
+      return originalFetch(input, init)
+    }
+
+    return () => {
+      window.fetch = originalFetch
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
       {/* Mobile backdrop */}
