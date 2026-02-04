@@ -111,24 +111,30 @@ export const updateBannerSchema = bannerSchema.partial()
  * Stream settings schemas
  */
 export const streamSettingsSchema = z.object({
-  streamUrl: z
-    .string()
-    .url('Invalid stream URL')
-    .max(1000, 'URL too long')
-    .optional()
-    .nullable(),
-  posterUrl: z
-    .string()
-    .url('Invalid poster URL')
-    .max(1000, 'URL too long')
-    .optional()
-    .nullable(),
+  streamUrl: z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.string()
+      .url('Invalid stream URL')
+      .max(1000, 'URL too long')
+      .optional()
+      .nullable()
+  ),
+  posterUrl: z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.string()
+      .url('Invalid poster URL')
+      .max(1000, 'URL too long')
+      .optional()
+      .nullable()
+  ),
   isActive: z.boolean().default(false),
-  scheduledEndTime: z
-    .string()
-    .datetime({ message: 'Invalid end time format' })
-    .optional()
-    .nullable(),
+  scheduledEndTime: z.preprocess(
+    (val) => (val === '' ? null : val),
+    z.string()
+      .datetime({ message: 'Invalid end time format' })
+      .optional()
+      .nullable()
+  ),
 })
 
 /**
