@@ -27,6 +27,9 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const [isMuted, setIsMuted] = useState(true)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [viewerCount, setViewerCount] = useState<number | null>(null)
+  const [nextScheduled, setNextScheduled] = useState<string | null>(null)
+  const [nextScheduledLabel, setNextScheduledLabel] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState<string>('')
   const retryIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const retryCountRef = useRef(0)
   const isActiveRef = useRef(false)
@@ -464,6 +467,8 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         setIsActive(data.isActive)
         isActiveRef.current = data.isActive // Sync ref immediately
         setPosterUrl(data.posterUrl || null)
+        setNextScheduled(data.nextScheduled || null)
+        setNextScheduledLabel(data.nextScheduledLabel || null)
       }
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') {
@@ -604,6 +609,42 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     return `${m}:${s.toString().padStart(2, '0')}`
   }
 
+  const formatCountdown = (targetIso: string | null): string => {
+    if (!targetIso) return ''
+    const target = new Date(targetIso)
+    const now = new Date()
+    const diff = target.getTime() - now.getTime()
+    if (diff <= 0) return 'Starting now'
+
+    const totalSeconds = Math.floor(diff / 1000)
+    const days = Math.floor(totalSeconds / 86400)
+    const hours = Math.floor((totalSeconds % 86400) / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+
+    if (days > 0) {
+      return `${days}d ${hours}h ${minutes}m`
+    }
+
+    return `${hours.toString().padStart(2, '0')}:${minutes
+      .toString()
+      .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  }
+
+  useEffect(() => {
+    if (!nextScheduled || isActive) {
+      setCountdown('')
+      return
+    }
+
+    setCountdown(formatCountdown(nextScheduled))
+    const interval = setInterval(() => {
+      setCountdown(formatCountdown(nextScheduled))
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [nextScheduled, isActive])
+
   // Toggle fullscreen
   const toggleFullscreen = async () => {
     const container = containerRef.current
@@ -730,6 +771,17 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
             <p className="text-gray-400 text-xs sm:text-sm max-w-xs mx-auto">
               There is no active service at this time.
             </p>
+            {nextScheduled && nextScheduledLabel && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs sm:text-sm text-gray-300 font-medium">
+                  Next: {nextScheduledLabel}
+                </p>
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded-full text-xs sm:text-sm font-semibold text-white">
+                  <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  {countdown || 'Starting soon'}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

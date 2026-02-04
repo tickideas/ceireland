@@ -136,10 +136,12 @@ export async function GET(_request: NextRequest) {
 
     // Calculate next scheduled time if not active
     let nextScheduled: string | null = null
+    let nextScheduledLabel: string | null = null
     if (!isActive) {
       const next = getNextScheduledTime(schedules, events)
       if (next) {
         nextScheduled = next.time.toISOString()
+        nextScheduledLabel = next.label
       }
     }
 
@@ -149,7 +151,8 @@ export async function GET(_request: NextRequest) {
       isActive,
       activeSource,
       activeLabel,
-      nextScheduled
+      nextScheduled,
+      nextScheduledLabel
     }
 
     streamCache = { data, expiresAt: Date.now() + CACHE_TTL_MS }
