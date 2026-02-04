@@ -15,6 +15,7 @@ A modern, intuitive, and beautiful online church platform for Christ Embassy Ire
 ### For Church Members
 - **Passwordless Authentication**: Login with magic links sent to email — no password fatigue.
 - **Live Streaming**: Native HLS playback with `hls.js` fallback for browsers without built-in support. Smart offline detection shows a friendly "Stream Starting Soon" message when the feed is unavailable, with automatic reconnection when the stream goes live.
+- **Stream Scheduling**: Automate your streams with recurring weekly schedules (e.g., Sunday 10:00-12:00) and one-off events for special services. Streams go live automatically at scheduled times.
 - **Daily Devotional**: Rhapsody of Realities integration with language overrides.
 - **Open Event Access**: Attend special services during active Open Events without creating an account.
 - **Announcements & Schedule**: Dynamic banner carousel and configurable service schedule.

@@ -18,6 +18,7 @@ Church App is a modern online church platform that lets congregants register and
 - Authentication: Magic-link style login (email initiated), JWT-backed sessions.
 - Open Events: Temporary public access during special events without authentication required.
 - Streaming: HLS playback with native support or hls.js fallback. Intelligent offline detection with auto-reconnect when stream becomes available.
+- Stream Scheduling: Recurring weekly schedules and one-off events for automated stream activation. Manual override available for immediate control.
 - Admin Console: User approvals, stream settings, service info, banner management, user import, analytics, reports, and open events management.
 - Devotional: Daily Rhapsody content fetched and displayed to members.
 - Attendance Tracking: Automatic tracking for both authenticated members and anonymous guests during open events.
@@ -29,7 +30,9 @@ Church App is a modern online church platform that lets congregants register and
 - OpenEvent: Special events with date ranges that allow public access without authentication.
 - OpenEventAttendance: Tracks both guest (sessionId) and member (userId) attendance with timestamps.
 - Banner: Title, image URL, optional link URL, order, active.
-- StreamSettings: `streamUrl`, `posterUrl`, and `isActive` flag used by player and admin.
+- StreamSettings: `streamUrl`, `posterUrl`, and `isActive` (manual override) flag used by player and admin.
+- StreamSchedule: Recurring weekly schedules with day of week, start/end times, and optional label.
+- StreamEvent: One-off stream events with title and start/end datetime for special services.
 - ServiceSettings: App title, header and schedule labels, and auth background image URL.
 
 ## High-Level Architecture

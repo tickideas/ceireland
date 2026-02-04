@@ -102,16 +102,22 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
 - Testing: Trigger a login and check your provider’s logs/metrics if mail isn’t delivered.
 
 ## Streaming Operations (HLS)
-- Settings: Admin → Stream tab controls `streamUrl`, `posterUrl`, and `isActive`.
+- Settings: Admin → Stream tab controls `streamUrl`, `posterUrl`, schedules, and events.
 - Requirements:
   - HLS `.m3u8` must be accessible over HTTPS.
   - If hosted on a different domain, ensure CORS/headers permit playback.
+- Stream Scheduling:
+  - **Weekly Schedules**: Set recurring time slots (e.g., Sunday 10:00-12:00, Wednesday 19:00-21:00).
+  - **One-off Events**: Schedule special services with specific start/end datetimes (e.g., Christmas Service).
+  - **Priority Order**: Manual override → One-off events → Weekly schedules.
+  - **Manual Override**: "Force Live" button activates stream immediately, ignoring all schedules.
+  - Streams auto-activate when scheduled time arrives and auto-deactivate when end time passes.
 - Stream Offline Handling:
   - When a service is marked active but the HLS feed is unavailable, viewers see a friendly "Stream Starting Soon" message instead of an error.
   - The player automatically retries every 30 seconds to check if the stream has come online.
   - Once the stream becomes available, playback starts automatically without user intervention.
   - The LIVE badge only appears when the stream is actually playing, not when offline.
-  - This allows admins to mark a service as "active" before the actual stream feed begins.
+  - This allows admins to schedule streams before the actual feed begins.
 - Debugging playback:
   - Check DevTools Network for `.m3u8` and `.ts` segment responses.
   - `HLSPlayer` logs lifecycle events to the console (in development mode).
