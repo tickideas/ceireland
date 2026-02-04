@@ -14,14 +14,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    // Get the first (and should be only) stream settings record
-    const streamSettings = await prisma.streamSettings.findFirst()
+    // Get stream settings, schedules, and events in parallel
+    const [streamSettings, schedules, events] = await Promise.all([
+      prisma.streamSettings.findFirst(),
+      prisma.streamSchedule.findMany({ orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] }),
+      prisma.streamEvent.findMany({ orderBy: { startDateTime: 'asc' } })
+    ])
 
     return NextResponse.json({
       streamUrl: streamSettings?.streamUrl || '',
       posterUrl: streamSettings?.posterUrl || '',
       isActive: streamSettings?.isActive || false,
-      scheduledEndTime: streamSettings?.scheduledEndTime || null
+      scheduledEndTime: streamSettings?.scheduledEndTime || null,
+      schedules,
+      events
     })
   } catch (error) {
     console.error('Get stream settings error:', error)
