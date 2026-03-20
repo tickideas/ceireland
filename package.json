@@ -7,6 +7,7 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --import tsx --test src/lib/**/*.test.ts",
     "postinstall": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
     "db:generate": "prisma generate --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
     "db:migrate": "prisma migrate dev --schema ${PRISMA_SCHEMA:-prisma/schema.prisma}",
