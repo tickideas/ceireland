@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdmin } from '@/lib/adminAuth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { searchParams } = request.nextUrl
     const isActive = searchParams.get('active')
-    
+
     let where = {}
-    
+
     if (isActive === 'true') {
       const now = new Date()
       where = {
@@ -42,33 +43,34 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ openEvents })
   } catch (error) {
-    console.error('Get open events error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventsList')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { title, description, startDate, endDate, isActive, allowPublic } = await request.json()
 
-    // Validation
     if (!title || !startDate || !endDate) {
-      return NextResponse.json({ error: 'Title, start date, and end date are required' }, { status: 400 })
+      const err = new ValidationError('Title, start date, and end date are required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const start = new Date(startDate)
     const end = new Date(endDate)
 
     if (start >= end) {
-      return NextResponse.json({ error: 'End date must be after start date' }, { status: 400 })
+      const err = new ValidationError('End date must be after start date')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Check for overlapping events
     const overlappingEvents = await prisma.openEvent.findFirst({
       where: {
         startDate: { lte: end },
@@ -77,7 +79,8 @@ export async function POST(request: NextRequest) {
     })
 
     if (overlappingEvents) {
-      return NextResponse.json({ error: 'Event overlaps with existing open event' }, { status: 400 })
+      const err = new ValidationError('Event overlaps with existing open event')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const openEvent = await prisma.openEvent.create({
@@ -102,12 +105,13 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Open event created successfully',
-      openEvent 
+      openEvent
     })
   } catch (error) {
-    console.error('Create open event error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventCreate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

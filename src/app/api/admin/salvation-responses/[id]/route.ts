@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function PATCH(
   request: NextRequest,
@@ -32,6 +32,10 @@ export async function PATCH(
     return NextResponse.json(updated)
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error')
+    if ((err as { code?: string }).code === 'P2025') {
+      const notFound = new NotFoundError('Salvation response not found')
+      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+    }
     logError(err, 'AdminSalvationResponseUpdate')
     return NextResponse.json(errorToResponse(err), { status: 500 })
   }
@@ -60,6 +64,10 @@ export async function DELETE(
     return NextResponse.json({ success: true })
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error')
+    if ((err as { code?: string }).code === 'P2025') {
+      const notFound = new NotFoundError('Salvation response not found')
+      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+    }
     logError(err, 'AdminSalvationResponseDelete')
     return NextResponse.json(errorToResponse(err), { status: 500 })
   }

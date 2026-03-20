@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdmin } from '@/lib/adminAuth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 function toCsvValue(val: unknown): string {
   if (val === null || val === undefined) return ''
@@ -16,15 +17,14 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const resolvedParams = await params
     const { id } = resolvedParams
 
-    // Verify event exists and get its details
     const openEvent = await prisma.openEvent.findUnique({
       where: { id },
       select: {
@@ -36,10 +36,10 @@ export async function GET(
     })
 
     if (!openEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
+      const err = new NotFoundError('Open event not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Generate filename with sanitized event title
     const eventSlug = openEvent.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
@@ -61,13 +61,11 @@ export async function GET(
       'IP Address'
     ]
 
-    // Stream CSV using cursor-based pagination
     const BATCH_SIZE = 500
     const encoder = new TextEncoder()
 
     const stream = new ReadableStream({
       async start(controller) {
-        // Write headers
         controller.enqueue(encoder.encode(headers.join(',') + '\n'))
 
         let cursor: string | undefined
@@ -138,7 +136,8 @@ export async function GET(
       }
     })
   } catch (error) {
-    console.error('Export open event attendance error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventAttendanceExport')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

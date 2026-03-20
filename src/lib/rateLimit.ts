@@ -3,6 +3,7 @@
  * Falls back to in-memory storage in test mode or when DB access is unavailable.
  */
 
+import { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 
 interface RateLimitEntry {
@@ -97,57 +98,80 @@ function checkRateLimitInMemory(
   }
 }
 
+const SERIALIZABLE_RETRY_LIMIT = 3
+
+function isRetryableSerializationError(error: unknown): boolean {
+  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    return error.code === 'P2034'
+  }
+  return false
+}
+
 async function checkRateLimitInDatabase(
   identifier: string,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
   const key = normalizeKey(identifier)
-  const now = Date.now()
-  const resetTime = new Date(now + config.windowMs)
 
-  return prisma.$transaction(async (tx) => {
-    const existing = await tx.rateLimitRecord.findUnique({
-      where: { key },
-      select: { count: true, resetTime: true },
-    })
+  for (let attempt = 0; attempt < SERIALIZABLE_RETRY_LIMIT; attempt += 1) {
+    const now = Date.now()
+    const resetTime = new Date(now + config.windowMs)
 
-    if (!existing || existing.resetTime.getTime() < now) {
-      await tx.rateLimitRecord.upsert({
-        where: { key },
-        create: {
-          key,
-          count: 1,
-          resetTime,
-        },
-        update: {
-          count: 1,
-          resetTime,
-        },
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const existing = await tx.rateLimitRecord.findUnique({
+          where: { key },
+          select: { count: true, resetTime: true },
+        })
+
+        if (!existing || existing.resetTime.getTime() < now) {
+          await tx.rateLimitRecord.upsert({
+            where: { key },
+            create: {
+              key,
+              count: 1,
+              resetTime,
+            },
+            update: {
+              count: 1,
+              resetTime,
+            },
+          })
+
+          return {
+            success: true,
+            remaining: config.maxAttempts - 1,
+            resetTime: resetTime.getTime(),
+          }
+        }
+
+        if (existing.count >= config.maxAttempts) {
+          return buildExceededResult(existing.resetTime.getTime())
+        }
+
+        const updated = await tx.rateLimitRecord.update({
+          where: { key },
+          data: { count: { increment: 1 } },
+          select: { count: true, resetTime: true },
+        })
+
+        return {
+          success: true,
+          remaining: config.maxAttempts - updated.count,
+          resetTime: updated.resetTime.getTime(),
+        }
+      }, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       })
-
-      return {
-        success: true,
-        remaining: config.maxAttempts - 1,
-        resetTime: resetTime.getTime(),
+    } catch (error) {
+      if (isRetryableSerializationError(error) && attempt < SERIALIZABLE_RETRY_LIMIT - 1) {
+        continue
       }
+      throw error
     }
+  }
 
-    if (existing.count >= config.maxAttempts) {
-      return buildExceededResult(existing.resetTime.getTime())
-    }
-
-    const updated = await tx.rateLimitRecord.update({
-      where: { key },
-      data: { count: { increment: 1 } },
-      select: { count: true, resetTime: true },
-    })
-
-    return {
-      success: true,
-      remaining: config.maxAttempts - updated.count,
-      resetTime: updated.resetTime.getTime(),
-    }
-  })
+  throw new Error('Rate limit transaction failed after retries')
 }
 
 export async function checkRateLimit(
@@ -277,7 +301,7 @@ export async function getRateLimitStoreSize(): Promise<number> {
   }
 
   try {
-    return prisma.rateLimitRecord.count()
+    return await prisma.rateLimitRecord.count()
   } catch (error) {
     console.warn('[RateLimit] Falling back to in-memory size:', error instanceof Error ? error.message : error)
     return inMemoryStore.size
