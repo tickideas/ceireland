@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdmin } from '@/lib/adminAuth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const resolvedParams = await params
     const { id } = resolvedParams
 
-    // Verify event exists
     const openEvent = await prisma.openEvent.findUnique({
       where: { id },
       select: {
@@ -27,10 +27,10 @@ export async function GET(
     })
 
     if (!openEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
+      const err = new NotFoundError('Open event not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Use DB aggregation for daily breakdown
     const dailyStats = await prisma.$queryRaw<
       { date: string; total: bigint; guests: bigint; members: bigint }[]
     >`
@@ -45,7 +45,6 @@ export async function GET(
       ORDER BY date
     `
 
-    // For detailed records, use pagination
     const { searchParams } = request.nextUrl
     const page = parseInt(searchParams.get('page') || '1', 10)
     const limit = Math.min(parseInt(searchParams.get('limit') || '100', 10), 500)
@@ -75,7 +74,6 @@ export async function GET(
       take: limit
     })
 
-    // Convert bigint to number for JSON serialization
     const dailyBreakdown = dailyStats.map((day: typeof dailyStats[number]) => ({
       date: day.date,
       total: Number(day.total),
@@ -99,7 +97,8 @@ export async function GET(
       }
     })
   } catch (error) {
-    console.error('Get open event daily attendance error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventAttendanceDaily')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

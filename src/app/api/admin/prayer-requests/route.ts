@@ -1,40 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { searchParams } = new URL(request.url)
     const includeArchived = searchParams.get('includeArchived') === 'true'
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10)))
     const skip = (page - 1) * limit
 
     const where = includeArchived ? {} : { isArchived: false }
 
-    const [requests, total] = await Promise.all([
+    const [requests, total, unreadCount] = await Promise.all([
       prisma.prayerRequest.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       }),
-      prisma.prayerRequest.count({ where })
+      prisma.prayerRequest.count({ where }),
+      prisma.prayerRequest.count({
+        where: { isRead: false, isArchived: false }
+      })
     ])
-
-    const unreadCount = await prisma.prayerRequest.count({
-      where: { isRead: false, isArchived: false }
-    })
 
     return NextResponse.json({
       requests,
@@ -47,7 +42,8 @@ export async function GET(request: NextRequest) {
       unreadCount
     })
   } catch (error) {
-    console.error('Error fetching prayer requests:', error)
-    return NextResponse.json({ error: 'Failed to fetch requests' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminPrayerRequestsList')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

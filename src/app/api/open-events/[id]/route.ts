@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdmin } from '@/lib/adminAuth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
     const { id } = await params
 
@@ -36,13 +37,15 @@ export async function GET(
     })
 
     if (!openEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
+      const err = new NotFoundError('Open event not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     return NextResponse.json({ openEvent })
   } catch (error) {
-    console.error('Get open event error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventGet')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
@@ -51,19 +54,19 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
     const { id } = await params
     const { title, description, startDate, endDate, isActive, allowPublic } = await request.json()
 
     const existingEvent = await prisma.openEvent.findUnique({ where: { id } })
     if (!existingEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
+      const err = new NotFoundError('Open event not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Validation
     let start = existingEvent.startDate
     let end = existingEvent.endDate
 
@@ -75,10 +78,10 @@ export async function PUT(
     }
 
     if (start >= end) {
-      return NextResponse.json({ error: 'End date must be after start date' }, { status: 400 })
+      const err = new ValidationError('End date must be after start date')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Check for overlapping events
     const overlappingEvents = await prisma.openEvent.findFirst({
       where: {
         id: { not: id },
@@ -92,7 +95,8 @@ export async function PUT(
     })
 
     if (overlappingEvents) {
-      return NextResponse.json({ error: 'Event overlaps with existing open event' }, { status: 400 })
+      const err = new ValidationError('Event overlaps with existing open event')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const updatedEvent = await prisma.openEvent.update({
@@ -118,13 +122,14 @@ export async function PUT(
       }
     })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Open event updated successfully',
-      openEvent: updatedEvent 
+      openEvent: updatedEvent
     })
   } catch (error) {
-    console.error('Update open event error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
@@ -133,32 +138,32 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
     const { id } = await params
 
     const existingEvent = await prisma.openEvent.findUnique({ where: { id } })
     if (!existingEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
+      const err = new NotFoundError('Open event not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Delete related attendance records first
     await prisma.openEventAttendance.deleteMany({
       where: { openEventId: id }
     })
 
-    // Delete the open event
     await prisma.openEvent.delete({
       where: { id }
     })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Open event deleted successfully'
     })
   } catch (error) {
-    console.error('Delete open event error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventDelete')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

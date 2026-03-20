@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
 import { Users, UserCheck, Clock, Eye, TrendingUp, Download, Calendar, Activity } from 'lucide-react'
 
@@ -79,15 +79,7 @@ export default function AnalyticsDashboard() {
   const [series, setSeries] = useState<Array<{ label: string; usersCreated: number; usersApprovedCreated: number; attendanceCount: number; servicesCount: number }>>([])
   const [seriesLoading, setSeriesLoading] = useState(true)
 
-  useEffect(() => {
-    fetchAnalytics()
-  }, [dateFilter])
-
-  useEffect(() => {
-    fetchTimeseries()
-  }, [granularity])
-
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     try {
       const response = await fetch(`/api/admin/analytics?period=${dateFilter}`)
       if (response.ok) {
@@ -99,9 +91,9 @@ export default function AnalyticsDashboard() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [dateFilter])
 
-  const fetchTimeseries = async () => {
+  const fetchTimeseries = useCallback(async () => {
     try {
       setSeriesLoading(true)
       const res = await fetch(`/api/admin/analytics/timeseries?granularity=${granularity}`)
@@ -114,7 +106,15 @@ export default function AnalyticsDashboard() {
     } finally {
       setSeriesLoading(false)
     }
-  }
+  }, [granularity])
+
+  useEffect(() => {
+    fetchAnalytics()
+  }, [fetchAnalytics])
+
+  useEffect(() => {
+    fetchTimeseries()
+  }, [fetchTimeseries])
 
   if (loading) {
     return (

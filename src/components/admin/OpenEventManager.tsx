@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Calendar, Plus, Edit2, Trash2, Eye, Download, Users, ChevronDown, ChevronUp, X, Loader2, Clock, Globe, Check } from 'lucide-react'
 
@@ -68,13 +68,7 @@ export default function OpenEventManager() {
   
   const formRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!userLoading) {
-      fetchOpenEvents()
-    }
-  }, [userLoading])
-
-  const fetchOpenEvents = async () => {
+  const fetchOpenEvents = useCallback(async () => {
     try {
       setLoadingEvents(true)
       const response = await fetch('/api/open-events')
@@ -90,7 +84,13 @@ export default function OpenEventManager() {
     } finally {
       setLoadingEvents(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (!userLoading) {
+      fetchOpenEvents()
+    }
+  }, [userLoading, fetchOpenEvents])
 
   const fetchAttendanceSummary = async (eventId: string) => {
     try {

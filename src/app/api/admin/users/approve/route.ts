@@ -1,25 +1,26 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { sendApprovalNotification } from '@/lib/email'
+import { userApprovalSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
 export async function PATCH(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const body = await request.json()
+    const validation = safeValidate(userApprovalSchema, body)
+
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    const { userId, approved } = await request.json()
-
-    if (!userId || typeof approved !== 'boolean') {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
-    }
+    const { userId, approved } = validation.data
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -37,17 +38,17 @@ export async function PATCH(request: NextRequest) {
       try {
         await sendApprovalNotification(user.email, `${user.name} ${user.lastName}`)
       } catch (emailError) {
-        console.error('Failed to send approval notification email:', emailError)
-        // Don't fail the approval if email fails
+        logError(emailError instanceof Error ? emailError : new Error('Approval email failed'), 'ApprovalNotification')
       }
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: `Member ${approved ? 'approved' : 'rejected'} successfully`,
-      user 
+      user
     })
   } catch (error) {
-    console.error('Update user approval error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminUserApproval')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

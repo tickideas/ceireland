@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { streamScheduleSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse } from '@/lib/errors'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
-// GET all schedules
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const schedules = await prisma.streamSchedule.findMany({
@@ -29,27 +17,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(schedules)
   } catch (error) {
-    console.error('Get stream schedules error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminStreamSchedulesList')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
-// POST create new schedule
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const body = await request.json()
@@ -72,7 +50,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(schedule, { status: 201 })
   } catch (error) {
-    console.error('Create stream schedule error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminStreamScheduleCreate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

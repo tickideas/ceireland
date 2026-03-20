@@ -1,40 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { updateUserSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, ConflictError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
-    const body = await request.json()
-    const { title, name, lastName, email, phone, approved } = body
-
-    const data: Record<string, string | boolean | null> = {}
-    if (typeof title !== 'undefined') data.title = title
-    if (typeof name !== 'undefined') data.name = name
-    if (typeof lastName !== 'undefined') data.lastName = lastName
-    if (typeof email !== 'undefined') data.email = email
-    if (typeof phone !== 'undefined') data.phone = phone
-    if (typeof approved === 'boolean') data.approved = approved
-
-    if (Object.keys(data).length === 0) {
-      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    if (!id) {
+      const err = new ValidationError('User ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Unique email guard
-    if (data.email && typeof data.email === 'string') {
+    const body = await request.json()
+    const validation = safeValidate(updateUserSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    const data = Object.fromEntries(
+      Object.entries(validation.data).filter(([, value]) => value !== undefined)
+    )
+
+    if (Object.keys(data).length === 0) {
+      const err = new ValidationError('No fields to update')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    if (typeof data.email === 'string') {
       const exists = await prisma.user.findFirst({ where: { email: data.email, NOT: { id } } })
       if (exists) {
-        return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
+        const err = new ConflictError('Email already in use')
+        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
       }
     }
 
@@ -56,42 +59,48 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({ message: 'Member updated', user })
   } catch (error) {
-    console.error('Update user error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    if ((err as { code?: string }).code === 'P2025') {
+      const notFound = new NotFoundError('Member not found')
+      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+    }
+    logError(err, 'AdminUserUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
+    if (!id) {
+      const err = new ValidationError('User ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
 
     const user = await prisma.user.findUnique({ where: { id } })
     if (!user) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+      const err = new NotFoundError('Member not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Guard: prevent deleting the last admin
     if (user.role === 'ADMIN') {
       const otherAdmins = await prisma.user.count({ where: { role: 'ADMIN', NOT: { id } } })
       if (otherAdmins === 0) {
-        return NextResponse.json({ error: 'Cannot delete the last admin user' }, { status: 400 })
+        const err = new ValidationError('Cannot delete the last admin user')
+        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
       }
     }
 
     await prisma.user.delete({ where: { id } })
     return NextResponse.json({ message: 'User deleted' })
   } catch (error) {
-    console.error('Delete user error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminUserDelete')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

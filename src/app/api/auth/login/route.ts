@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const { email } = validation.data
 
     // Check rate limit (10 attempts per 15 minutes - church-friendly)
-    const rateLimitResult = checkRateLimit(`login:${email}`, RATE_LIMITS.LOGIN)
+    const rateLimitResult = await checkRateLimit(`login:${email}`, RATE_LIMITS.LOGIN)
     if (!rateLimitResult.success) {
       const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
       const err = new RateLimitError(rateLimitResult.error || 'Too many login attempts', retryAfter)
@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Reset rate limit on successful login
-    resetRateLimit(`login:${email}`)
+    await resetRateLimit(`login:${email}`)
 
     const response = NextResponse.json({ 
       message: 'Login successful',

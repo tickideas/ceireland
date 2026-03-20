@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdmin } from '@/lib/adminAuth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminCheck = await verifyAdmin(request)
-    if (adminCheck instanceof NextResponse) {
-      return adminCheck
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const resolvedParams = await params
     const { id } = resolvedParams
 
-    // Verify event exists
     const openEvent = await prisma.openEvent.findUnique({
       where: { id },
       select: {
@@ -27,10 +27,10 @@ export async function GET(
     })
 
     if (!openEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
+      const err = new NotFoundError('Open event not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Use DB aggregation for counts
     const [totalResult, guestResult, memberResult] = await Promise.all([
       prisma.openEventAttendance.count({
         where: { openEventId: id }
@@ -43,9 +43,8 @@ export async function GET(
       })
     ])
 
-    // Get unique days using raw query for efficiency
     const uniqueDays = await prisma.$queryRaw<{ date: string }[]>`
-      SELECT DISTINCT DATE(\"checkInTime\") as date
+      SELECT DISTINCT DATE("checkInTime") as date
       FROM "OpenEventAttendance"
       WHERE "openEventId" = ${id}
       ORDER BY date
@@ -67,7 +66,8 @@ export async function GET(
       }
     })
   } catch (error) {
-    console.error('Get open event attendance summary error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'OpenEventAttendanceSummary')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

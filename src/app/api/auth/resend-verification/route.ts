@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     const { email } = validation.data
 
-    const rateLimitResult = checkRateLimit(`resend-verification:${email}`, {
+    const rateLimitResult = await checkRateLimit(`resend-verification:${email}`, {
       maxAttempts: 3,
       windowMs: 60 * 60 * 1000
     })

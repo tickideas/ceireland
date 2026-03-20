@@ -1,32 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { z } from 'zod'
+import { revalidateTag } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { serviceSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 import type { TwitterCardType } from '@/types'
 
-// Validation schema for service settings
-const serviceSettingsSchema = z.object({
-  appName: z.string().min(1).max(100).optional(),
-  headerTitle: z.string().min(1).max(100).optional(),
-  sundayLabel: z.string().min(1).max(50).optional(),
-  sundayTime: z.string().min(1).max(50).optional(),
-  wednesdayLabel: z.string().min(1).max(50).optional(),
-  wednesdayTime: z.string().min(1).max(50).optional(),
-  prayerLabel: z.string().min(1).max(50).optional(),
-  prayerTime: z.string().min(1).max(50).optional(),
-  authBackgroundUrl: z.string().url().max(500).optional().nullable(),
-  authLogoUrl: z.string().url().max(500).optional().nullable(),
-  authWelcomeHeading: z.string().min(1).max(100).optional(),
-  authTagline: z.string().min(1).max(200).optional(),
-  authFooterText: z.string().min(1).max(100).optional(),
-  seoTitle: z.string().max(60).optional().nullable(),
-  seoDescription: z.string().max(160).optional().nullable(),
-  seoImage: z.string().url().max(500).optional().nullable(),
-  seoSiteName: z.string().max(100).optional().nullable(),
-  twitterCardType: z.enum(['summary', 'summary_large_image']).optional(),
-})
-
-// Default settings for fallback
 const DEFAULT_SETTINGS = {
   appName: 'Church App',
   headerTitle: 'Church Service',
@@ -48,25 +27,12 @@ const DEFAULT_SETTINGS = {
   twitterCardType: 'summary_large_image' as TwitterCardType,
 }
 
-// Helper to require admin authentication
-async function requireAdmin(request: NextRequest) {
-  const token = request.cookies.get('auth-token')?.value
-  if (!token) {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) }
-  }
-  const payload = verifyToken(token)
-  if (!payload || payload.role !== 'ADMIN') {
-    return { error: NextResponse.json({ error: 'Forbidden' }, { status: 403 }) }
-  }
-  return { payload }
-}
-
-// Admin endpoints to read and update the dashboard header + service info
-
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAdmin(request)
-    if ('error' in auth) return auth.error
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
+    }
 
     const settings = await prisma.serviceSettings.findFirst()
     return NextResponse.json({
@@ -90,31 +56,29 @@ export async function GET(request: NextRequest) {
       twitterCardType: settings?.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
     })
   } catch (error) {
-    console.error('Get service settings error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminServiceSettingsGet')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const auth = await requireAdmin(request)
-    if ('error' in auth) return auth.error
-
-    const body = await request.json()
-    
-    // Validate input
-    const validationResult = serviceSettingsSchema.safeParse(body)
-    if (!validationResult.success) {
-      return NextResponse.json(
-        { error: 'Invalid input', details: validationResult.error.flatten() },
-        { status: 400 }
-      )
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
-    const validatedData = validationResult.data
-    
-    // Build update data object with only defined values
+    const body = await request.json()
+    const validation = safeValidate(serviceSettingsSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    const validatedData = validation.data
     const updateData: Record<string, string | null> = {}
+
     if (validatedData.appName !== undefined) updateData.appName = validatedData.appName
     if (validatedData.headerTitle !== undefined) updateData.headerTitle = validatedData.headerTitle
     if (validatedData.sundayLabel !== undefined) updateData.sundayLabel = validatedData.sundayLabel
@@ -134,38 +98,36 @@ export async function PUT(request: NextRequest) {
     if (validatedData.seoSiteName !== undefined) updateData.seoSiteName = validatedData.seoSiteName
     if (validatedData.twitterCardType !== undefined) updateData.twitterCardType = validatedData.twitterCardType
 
-    // Find existing settings or create
     const existing = await prisma.serviceSettings.findFirst()
-    let saved
-    if (existing) {
-      saved = await prisma.serviceSettings.update({
-        where: { id: existing.id },
-        data: updateData,
-      })
-    } else {
-      saved = await prisma.serviceSettings.create({
-        data: {
-          appName: validatedData.appName ?? DEFAULT_SETTINGS.appName,
-          headerTitle: validatedData.headerTitle ?? DEFAULT_SETTINGS.headerTitle,
-          sundayLabel: validatedData.sundayLabel ?? DEFAULT_SETTINGS.sundayLabel,
-          sundayTime: validatedData.sundayTime ?? DEFAULT_SETTINGS.sundayTime,
-          wednesdayLabel: validatedData.wednesdayLabel ?? DEFAULT_SETTINGS.wednesdayLabel,
-          wednesdayTime: validatedData.wednesdayTime ?? DEFAULT_SETTINGS.wednesdayTime,
-          prayerLabel: validatedData.prayerLabel ?? DEFAULT_SETTINGS.prayerLabel,
-          prayerTime: validatedData.prayerTime ?? DEFAULT_SETTINGS.prayerTime,
-          authBackgroundUrl: validatedData.authBackgroundUrl ?? null,
-          authLogoUrl: validatedData.authLogoUrl ?? null,
-          authWelcomeHeading: validatedData.authWelcomeHeading ?? DEFAULT_SETTINGS.authWelcomeHeading,
-          authTagline: validatedData.authTagline ?? DEFAULT_SETTINGS.authTagline,
-          authFooterText: validatedData.authFooterText ?? DEFAULT_SETTINGS.authFooterText,
-          seoTitle: validatedData.seoTitle ?? null,
-          seoDescription: validatedData.seoDescription ?? null,
-          seoImage: validatedData.seoImage ?? null,
-          seoSiteName: validatedData.seoSiteName ?? null,
-          twitterCardType: validatedData.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
-        }
-      })
-    }
+    const saved = existing
+      ? await prisma.serviceSettings.update({
+          where: { id: existing.id },
+          data: updateData,
+        })
+      : await prisma.serviceSettings.create({
+          data: {
+            appName: validatedData.appName ?? DEFAULT_SETTINGS.appName,
+            headerTitle: validatedData.headerTitle ?? DEFAULT_SETTINGS.headerTitle,
+            sundayLabel: validatedData.sundayLabel ?? DEFAULT_SETTINGS.sundayLabel,
+            sundayTime: validatedData.sundayTime ?? DEFAULT_SETTINGS.sundayTime,
+            wednesdayLabel: validatedData.wednesdayLabel ?? DEFAULT_SETTINGS.wednesdayLabel,
+            wednesdayTime: validatedData.wednesdayTime ?? DEFAULT_SETTINGS.wednesdayTime,
+            prayerLabel: validatedData.prayerLabel ?? DEFAULT_SETTINGS.prayerLabel,
+            prayerTime: validatedData.prayerTime ?? DEFAULT_SETTINGS.prayerTime,
+            authBackgroundUrl: validatedData.authBackgroundUrl ?? null,
+            authLogoUrl: validatedData.authLogoUrl ?? null,
+            authWelcomeHeading: validatedData.authWelcomeHeading ?? DEFAULT_SETTINGS.authWelcomeHeading,
+            authTagline: validatedData.authTagline ?? DEFAULT_SETTINGS.authTagline,
+            authFooterText: validatedData.authFooterText ?? DEFAULT_SETTINGS.authFooterText,
+            seoTitle: validatedData.seoTitle ?? null,
+            seoDescription: validatedData.seoDescription ?? null,
+            seoImage: validatedData.seoImage ?? null,
+            seoSiteName: validatedData.seoSiteName ?? null,
+            twitterCardType: validatedData.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
+          }
+        })
+
+    revalidateTag('service-settings')
 
     return NextResponse.json({
       message: 'Service settings saved',
@@ -189,7 +151,8 @@ export async function PUT(request: NextRequest) {
       twitterCardType: saved.twitterCardType ?? 'summary_large_image',
     })
   } catch (error) {
-    console.error('Update service settings error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminServiceSettingsUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type Hls from 'hls.js'
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -229,8 +229,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   }, [streamOffline])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const currentSrc = getVideoSrc()
+    const currentSrc = streamUrl && isActive ? streamUrl : src && src.trim().length > 0 ? src : ''
     if (isDev) console.log('[HLSPlayer] Video src changed to:', currentSrc)
   }, [streamUrl, isActive, src])
 
@@ -427,7 +426,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         hlsRef.current = null
       }
     }
-  }, [streamUrl, isActive, src])
+  }, [getVideoSrc, isActive, src, startRetryLoop, streamUrl])
 
   const attemptAutoplay = (video: HTMLVideoElement) => {
     if (autoplayAttemptedRef.current) return
@@ -482,25 +481,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     }
   }
 
-  const startRetryLoop = () => {
-    // Clear any existing retry interval
-    if (retryIntervalRef.current) {
-      clearInterval(retryIntervalRef.current)
-    }
-
-    retryCountRef.current = 0
-    
-    // Retry every 30 seconds (gentle on server)
-    retryIntervalRef.current = setInterval(() => {
-      retryCountRef.current += 1
-      if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
-      
-      // Try to reload the stream
-      retryStream()
-    }, 30000)
-  }
-
-  const retryStream = async () => {
+  const retryStream = useCallback(async () => {
     const video = videoRef.current
     if (!video) return
 
@@ -509,7 +490,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
 
     try {
       // First check if stream URL is accessible
-      const response = await fetch(currentSrc, { method: 'HEAD', mode: 'no-cors' })
+      await fetch(currentSrc, { method: 'HEAD', mode: 'no-cors' })
       
       if (isDev) console.log('[HLSPlayer] Stream check completed, attempting reload')
       
@@ -532,7 +513,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
 
       // Re-trigger the stream setup by updating a state
       // This will cause the useEffect to re-run
-      setStreamUrl(prev => {
+      setStreamUrl(() => {
         // Force a re-render by setting to null then back
         setTimeout(() => setStreamUrl(currentSrc), 100)
         return null
@@ -540,7 +521,25 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     } catch {
       if (isDev) console.log('[HLSPlayer] Stream still offline, will retry...')
     }
-  }
+  }, [getVideoSrc])
+
+  const startRetryLoop = useCallback(() => {
+    // Clear any existing retry interval
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current)
+    }
+
+    retryCountRef.current = 0
+    
+    // Retry every 30 seconds (gentle on server)
+    retryIntervalRef.current = setInterval(() => {
+      retryCountRef.current += 1
+      if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
+      
+      // Try to reload the stream
+      retryStream()
+    }, 30000)
+  }, [retryStream])
 
   const stopRetryLoop = () => {
     if (retryIntervalRef.current) {
@@ -550,11 +549,11 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
     retryCountRef.current = 0
   }
 
-  const getVideoSrc = () => {
+  const getVideoSrc = useCallback(() => {
     if (streamUrl && isActive) return streamUrl
     if (src && src.trim().length > 0) return src
     return ''
-  }
+  }, [streamUrl, isActive, src])
 
   const getPoster = () => {
     return (posterUrl && posterUrl.trim().length > 0) ? posterUrl : (poster || '/poster.jpg')

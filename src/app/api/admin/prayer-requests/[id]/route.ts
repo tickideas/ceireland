@@ -1,23 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
+    if (!id) {
+      const err = new ValidationError('Prayer request ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
     const body = await request.json()
 
     const updated = await prisma.prayerRequest.update({
@@ -31,8 +32,13 @@ export async function PATCH(
 
     return NextResponse.json(updated)
   } catch (error) {
-    console.error('Error updating prayer request:', error)
-    return NextResponse.json({ error: 'Failed to update request' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    if ((err as { code?: string }).code === 'P2025') {
+      const notFound = new NotFoundError('Prayer request not found')
+      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+    }
+    logError(err, 'AdminPrayerRequestUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
@@ -41,17 +47,16 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
+    if (!id) {
+      const err = new ValidationError('Prayer request ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
 
     await prisma.prayerRequest.delete({
       where: { id }
@@ -59,7 +64,12 @@ export async function DELETE(
 
     return NextResponse.json({ success: true })
   } catch (error) {
-    console.error('Error deleting prayer request:', error)
-    return NextResponse.json({ error: 'Failed to delete request' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    if ((err as { code?: string }).code === 'P2025') {
+      const notFound = new NotFoundError('Prayer request not found')
+      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+    }
+    logError(err, 'AdminPrayerRequestDelete')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

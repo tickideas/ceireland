@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { useOpenEvent } from '@/hooks/useOpenEvent'
 
 export default function HomePage() {
-  const { user, loading, isCheckingAuth } = useAuth()
+  const { user, loading } = useAuth()
   const { hasActiveEvent, loading: openEventLoading } = useOpenEvent()
   const router = useRouter()
 

@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
+
 interface AuthBrandPanelProps {
   bgUrl?: string | null
   logoUrl?: string | null

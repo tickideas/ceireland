@@ -30,7 +30,7 @@ export async function POST(request: Request) {
   try {
     const clientIP = getClientIP(request)
     
-    const rateLimitResult = checkRateLimit(`prayer-request:${clientIP}`, RATE_LIMITS.PRAYER_REQUEST)
+    const rateLimitResult = await checkRateLimit(`prayer-request:${clientIP}`, RATE_LIMITS.PRAYER_REQUEST)
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: rateLimitResult.error || 'Too many requests. Please try again later.' },
