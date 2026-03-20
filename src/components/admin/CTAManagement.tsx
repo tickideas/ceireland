@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Heart, HandHeart, Cross, Check, X, Loader2, Mail, Phone, ChevronDown, ChevronUp, Archive, Trash2, Eye, EyeOff } from 'lucide-react'
 
 interface CTASettings {
@@ -76,14 +76,6 @@ export default function CTAManagement() {
     fetchSettings()
   }, [])
 
-  useEffect(() => {
-    if (activeTab === 'prayers') {
-      fetchPrayerRequests()
-    } else if (activeTab === 'salvation') {
-      fetchSalvationResponses()
-    }
-  }, [activeTab, showArchivedPrayers, showFollowedUp])
-
   const fetchSettings = async () => {
     try {
       const res = await fetch('/api/admin/cta-settings')
@@ -100,7 +92,7 @@ export default function CTAManagement() {
     }
   }
 
-  const fetchPrayerRequests = async () => {
+  const fetchPrayerRequests = useCallback(async () => {
     setPrayerLoading(true)
     try {
       const res = await fetch(`/api/admin/prayer-requests?includeArchived=${showArchivedPrayers}`)
@@ -114,9 +106,9 @@ export default function CTAManagement() {
     } finally {
       setPrayerLoading(false)
     }
-  }
+  }, [showArchivedPrayers])
 
-  const fetchSalvationResponses = async () => {
+  const fetchSalvationResponses = useCallback(async () => {
     setSalvationLoading(true)
     try {
       const res = await fetch(`/api/admin/salvation-responses?showFollowedUp=${showFollowedUp}`)
@@ -130,7 +122,15 @@ export default function CTAManagement() {
     } finally {
       setSalvationLoading(false)
     }
-  }
+  }, [showFollowedUp])
+
+  useEffect(() => {
+    if (activeTab === 'prayers') {
+      fetchPrayerRequests()
+    } else if (activeTab === 'salvation') {
+      fetchSalvationResponses()
+    }
+  }, [activeTab, fetchPrayerRequests, fetchSalvationResponses])
 
   const handleSaveSettings = async () => {
     if (!settings) return

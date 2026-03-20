@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, UserPlus, Check, X, Edit2, Trash2, Shield, ShieldOff, ChevronLeft, ChevronRight, Users } from 'lucide-react'
 
 interface UserListItem {
@@ -33,12 +33,8 @@ export default function UserManagement() {
   const [total, setTotal] = useState(0)
 
   useEffect(() => {
-    fetchUsers()
-  }, [filter, search, page, pageSize])
-
-  useEffect(() => {
     fetchCounts()
-  }, [])
+  }, [fetchCounts])
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -47,7 +43,7 @@ export default function UserManagement() {
     }
   }, [])
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const qs = new URLSearchParams({ status: filter, page: String(page), pageSize: String(pageSize) })
       if (search) qs.set('search', search)
@@ -64,7 +60,11 @@ export default function UserManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [filter, search, page, pageSize])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
   
   const handleSearchChange = (value: string) => {
     setPendingSearch(value)
@@ -75,7 +75,7 @@ export default function UserManagement() {
     searchDebounceTimerRef.current = t
   }
 
-  const fetchCounts = async () => {
+  const fetchCounts = useCallback(async () => {
     try {
       const [allRes, pendingRes] = await Promise.all([
         fetch('/api/admin/users?status=all&page=1&pageSize=1'),
@@ -87,7 +87,7 @@ export default function UserManagement() {
     } catch (error) {
       console.error('Failed to fetch member counts:', error)
     }
-  }
+  }, [])
 
   const handleApprove = async (userId: string, approved: boolean) => {
     try {

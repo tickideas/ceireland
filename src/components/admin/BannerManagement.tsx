@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState, useEffect } from 'react'
 import { Plus, Edit2, Trash2, Image, Link, GripVertical, Loader2 } from 'lucide-react'
 

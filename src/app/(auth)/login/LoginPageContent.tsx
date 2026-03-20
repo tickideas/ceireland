@@ -1,5 +1,7 @@
 'use client'
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -56,7 +58,7 @@ export default function LoginPageContent({ initialAppName, initialBgUrl, initial
           setError(data.error)
         }
       }
-    } catch (error) {
+    } catch {
       setError('An error occurred during login')
     } finally {
       setLoading(false)

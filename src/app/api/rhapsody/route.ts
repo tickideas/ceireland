@@ -225,7 +225,7 @@ export async function GET(request: NextRequest) {
           const normalizeForCompare = (s: string) => normalizeQuotes(decodeEntities(s)).toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim()
           const scriptureNorm = scripture ? normalizeForCompare(scripture) : ''
           if (scriptureNorm) {
-            devotionalParas = devotionalParas.filter((p, idx) => normalizeForCompare(p) !== scriptureNorm)
+            devotionalParas = devotionalParas.filter((p) => normalizeForCompare(p) !== scriptureNorm)
           }
           // De-duplicate consecutive identical paragraphs
           const deduped: string[] = []
@@ -311,7 +311,7 @@ export async function GET(request: NextRequest) {
           const flattened = flattenNextDataStrings(nextData)
           const viaText = extractSections(flattened)
           sections = viaText
-        } catch (e) {
+        } catch {
           // ignore
         }
       }

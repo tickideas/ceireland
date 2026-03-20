@@ -1,5 +1,7 @@
 "use client"
 
+/* eslint-disable @next/next/no-img-element */
+
 import { useEffect, useState, useCallback } from 'react'
 import { Settings, Image, Loader2, Check, Share2 } from 'lucide-react'
 

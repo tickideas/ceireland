@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Radio, Image, Check, X, ExternalLink, Loader2, AlertCircle, Clock, Plus, Trash2, Calendar, Edit2 } from 'lucide-react'
+import { Radio, Image, Check, Loader2, AlertCircle, Clock, Plus, Trash2, Calendar, Edit2 } from 'lucide-react'
 
 interface StreamSchedule {
   id: string
