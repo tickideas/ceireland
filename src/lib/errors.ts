@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server'
+
 /**
  * Custom error classes for consistent error handling across the application
  */
@@ -177,4 +179,14 @@ export function logError(error: Error | AppError, context?: string): void {
     // Unknown errors are potential bugs
     console.error(`${timestamp} ${prefix} Unknown Error:`, error.message, error.stack)
   }
+}
+
+/**
+ * Convert any thrown value into a logged NextResponse with the correct HTTP status.
+ */
+export function errorResponse(error: unknown, context?: string): NextResponse<ErrorResponse> {
+  const err = error instanceof Error ? error : new Error('Unknown error')
+  logError(err, context)
+  const response = errorToResponse(err)
+  return NextResponse.json(response, { status: response.statusCode })
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { attendanceQuerySchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 function parseDateParam(value: string | null): Date {
   if (!value) return new Date()
@@ -147,8 +147,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ date: dayStart, records })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminAttendance')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminAttendance')
   }
 }

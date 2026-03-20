@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { NotFoundError, errorToResponse, logError } from '@/lib/errors'
+import { NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
 
 function toCsvValue(val: unknown): string {
   if (val === null || val === undefined) return ''
@@ -136,8 +136,6 @@ export async function GET(
       }
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventAttendanceExport')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventAttendanceExport')
   }
 }

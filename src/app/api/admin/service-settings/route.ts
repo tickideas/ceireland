@@ -3,7 +3,7 @@ import { revalidateTag } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { serviceSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 import type { TwitterCardType } from '@/types'
 
 const DEFAULT_SETTINGS = {
@@ -56,9 +56,7 @@ export async function GET(request: NextRequest) {
       twitterCardType: settings?.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminServiceSettingsGet')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminServiceSettingsGet')
   }
 }
 
@@ -151,8 +149,6 @@ export async function PUT(request: NextRequest) {
       twitterCardType: saved.twitterCardType ?? 'summary_large_image',
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminServiceSettingsUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminServiceSettingsUpdate')
   }
 }

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { emailSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import { invalidateEmailSettingsCache } from '@/lib/email'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 import type { EmailSettingsResponse } from '@/types'
 
 /**
@@ -66,9 +66,7 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'GetEmailSettings')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'GetEmailSettings')
   }
 }
 
@@ -168,8 +166,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(response)
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'UpdateEmailSettings')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'UpdateEmailSettings')
   }
 }

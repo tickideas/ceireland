@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { bannerSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ banners })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminBannersList')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminBannersList')
   }
 }
 
@@ -54,8 +52,6 @@ export async function POST(request: NextRequest) {
       banner
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminBannerCreate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminBannerCreate')
   }
 }

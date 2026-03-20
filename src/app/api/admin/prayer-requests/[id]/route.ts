@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function PATCH(
   request: NextRequest,
@@ -37,8 +37,7 @@ export async function PATCH(
       const notFound = new NotFoundError('Prayer request not found')
       return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
     }
-    logError(err, 'AdminPrayerRequestUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminPrayerRequestUpdate')
   }
 }
 
@@ -69,7 +68,6 @@ export async function DELETE(
       const notFound = new NotFoundError('Prayer request not found')
       return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
     }
-    logError(err, 'AdminPrayerRequestDelete')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminPrayerRequestDelete')
   }
 }

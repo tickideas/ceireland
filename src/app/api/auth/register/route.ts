@@ -13,7 +13,7 @@ import {
   ConflictError,
   RateLimitError,
   errorToResponse,
-  logError
+  errorResponse
 } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
@@ -107,8 +107,6 @@ export async function POST(request: NextRequest) {
       requiresVerification: false
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'Registration')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'Registration')
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { userRoleSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -57,8 +57,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({ message: 'Role updated', user })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminUserRoleUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminUserRoleUpdate')
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { bulkUserImportSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse, logError } from '@/lib/errors'
 
 interface ResultBase { email: string; row: number }
 type CreatedResult = ResultBase & { status: 'created'; id: string }
@@ -149,8 +149,6 @@ export async function POST(request: NextRequest) {
       results
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminUserImport')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminUserImport')
   }
 }

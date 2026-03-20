@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { streamSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,9 +26,7 @@ export async function GET(request: NextRequest) {
       events
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminStreamGet')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminStreamGet')
   }
 }
 
@@ -80,8 +78,6 @@ export async function PUT(request: NextRequest) {
       scheduledEndTime: streamSettings.scheduledEndTime
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminStreamUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminStreamUpdate')
   }
 }

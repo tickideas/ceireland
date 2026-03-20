@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { ctaSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,9 +18,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(settings)
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminCTASettingsGet')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminCTASettingsGet')
   }
 }
 
@@ -96,8 +94,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json(settings)
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminCTASettingsUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminCTASettingsUpdate')
   }
 }

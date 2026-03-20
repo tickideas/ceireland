@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { NotFoundError, errorToResponse, logError } from '@/lib/errors'
+import { NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(
   request: NextRequest,
@@ -66,8 +66,6 @@ export async function GET(
       }
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventAttendanceSummary')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventAttendanceSummary')
   }
 }
