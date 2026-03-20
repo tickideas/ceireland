@@ -36,6 +36,10 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  turbopack: {
+    root: process.cwd(),
+  },
+
   // Allow cross-origin requests from development IP
   allowedDevOrigins: ["172.19.2.171"],
 
