@@ -127,7 +127,7 @@ export async function PUT(request: NextRequest) {
           }
         })
 
-    revalidateTag('service-settings')
+    revalidateTag('service-settings', 'max')
 
     return NextResponse.json({
       message: 'Service settings saved',

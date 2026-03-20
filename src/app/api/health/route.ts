@@ -71,7 +71,7 @@ export async function GET() {
   }
 
   // Check rate limit store size
-  const rateLimitSize = getRateLimitStoreSize()
+  const rateLimitSize = await getRateLimitStoreSize()
   let rateLimitStatus: 'ok' | 'warning' = 'ok'
   if (rateLimitSize > 1000) {
     rateLimitStatus = 'warning'

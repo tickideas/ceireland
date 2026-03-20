@@ -48,6 +48,133 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const progressRef = useRef<HTMLDivElement>(null)
   const lastTimeUpdateRef = useRef(0)
 
+  const getVideoSrc = useCallback(() => {
+    if (streamUrl && isActive) return streamUrl
+    if (src && src.trim().length > 0) return src
+    return ''
+  }, [streamUrl, isActive, src])
+
+  const attemptAutoplay = (video: HTMLVideoElement) => {
+    if (autoplayAttemptedRef.current) return
+    autoplayAttemptedRef.current = true
+    try {
+      video.muted = true
+      video.autoplay = true
+      video.setAttribute('playsinline', 'true')
+
+      const p = video.play()
+      if (p && typeof p.then === 'function') {
+        p.then(() => {
+          if (isDev) console.log('[HLSPlayer] Autoplay succeeded (muted)')
+        }).catch(err => {
+          if (isDev) {
+            if (err?.name === 'NotAllowedError') {
+              console.log('[HLSPlayer] Autoplay blocked by policy; user interaction required')
+            } else if (err?.name === 'AbortError') {
+              console.log('[HLSPlayer] Autoplay aborted, likely due to src change')
+            } else {
+              console.log('[HLSPlayer] Autoplay attempt failed:', err)
+            }
+          }
+        })
+      }
+    } catch (err) {
+      if (isDev) console.log('[HLSPlayer] Autoplay exception:', err)
+    }
+  }
+
+  const fetchStreamSettings = async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch('/api/stream', { signal })
+      if (response.ok) {
+        const data = await response.json()
+        if (isDev) console.log('[HLSPlayer] Stream settings fetched:', { streamUrl: data.streamUrl, isActive: data.isActive, posterUrl: data.posterUrl })
+        setStreamUrl(data.streamUrl)
+        setIsActive(data.isActive)
+        isActiveRef.current = data.isActive // Sync ref immediately
+        setPosterUrl(data.posterUrl || null)
+        setNextScheduled(data.nextScheduled || null)
+        setNextScheduledLabel(data.nextScheduledLabel || null)
+      }
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        if (isDev) console.log('[HLSPlayer] Fetch aborted')
+        return
+      }
+      if (isDev) console.error('[HLSPlayer] Failed to fetch stream settings:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const retryStream = useCallback(async () => {
+    const video = videoRef.current
+    if (!video) return
+
+    const currentSrc = getVideoSrc()
+    if (!currentSrc) return
+
+    try {
+      // First check if stream URL is accessible
+      await fetch(currentSrc, { method: 'HEAD', mode: 'no-cors' })
+
+      if (isDev) console.log('[HLSPlayer] Stream check completed, attempting reload')
+
+      // Clear offline state and try to reload
+      setStreamOffline(false)
+      streamOfflineRef.current = false
+      setError('')
+
+      // Destroy existing HLS instance
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
+      }
+
+      // Clear retry interval if successful
+      if (retryIntervalRef.current) {
+        clearInterval(retryIntervalRef.current)
+        retryIntervalRef.current = null
+      }
+
+      // Re-trigger the stream setup by updating a state
+      // This will cause the useEffect to re-run
+      setStreamUrl(() => {
+        // Force a re-render by setting to null then back
+        setTimeout(() => setStreamUrl(currentSrc), 100)
+        return null
+      })
+    } catch {
+      if (isDev) console.log('[HLSPlayer] Stream still offline, will retry...')
+    }
+  }, [getVideoSrc])
+
+  const startRetryLoop = useCallback(() => {
+    // Clear any existing retry interval
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current)
+    }
+
+    retryCountRef.current = 0
+
+    // Retry every 30 seconds (gentle on server)
+    retryIntervalRef.current = setInterval(() => {
+      retryCountRef.current += 1
+      if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
+
+      // Try to reload the stream
+      retryStream()
+    }, 30000)
+  }, [retryStream])
+
+  const stopRetryLoop = () => {
+    if (retryIntervalRef.current) {
+      clearInterval(retryIntervalRef.current)
+      retryIntervalRef.current = null
+    }
+    retryCountRef.current = 0
+  }
+
   useEffect(() => {
     if (isDev) console.log('[HLSPlayer] Component mounted')
     sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
@@ -427,133 +554,6 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       }
     }
   }, [getVideoSrc, isActive, src, startRetryLoop, streamUrl])
-
-  const attemptAutoplay = (video: HTMLVideoElement) => {
-    if (autoplayAttemptedRef.current) return
-    autoplayAttemptedRef.current = true
-    try {
-      video.muted = true
-      video.autoplay = true
-      video.setAttribute('playsinline', 'true')
-
-      const p = video.play()
-      if (p && typeof p.then === 'function') {
-        p.then(() => {
-          if (isDev) console.log('[HLSPlayer] Autoplay succeeded (muted)')
-        }).catch(err => {
-          if (isDev) {
-            if (err?.name === 'NotAllowedError') {
-              console.log('[HLSPlayer] Autoplay blocked by policy; user interaction required')
-            } else if (err?.name === 'AbortError') {
-              console.log('[HLSPlayer] Autoplay aborted, likely due to src change')
-            } else {
-              console.log('[HLSPlayer] Autoplay attempt failed:', err)
-            }
-          }
-        })
-      }
-    } catch (err) {
-      if (isDev) console.log('[HLSPlayer] Autoplay exception:', err)
-    }
-  }
-
-  const fetchStreamSettings = async (signal?: AbortSignal) => {
-    try {
-      const response = await fetch('/api/stream', { signal })
-      if (response.ok) {
-        const data = await response.json()
-        if (isDev) console.log('[HLSPlayer] Stream settings fetched:', { streamUrl: data.streamUrl, isActive: data.isActive, posterUrl: data.posterUrl })
-        setStreamUrl(data.streamUrl)
-        setIsActive(data.isActive)
-        isActiveRef.current = data.isActive // Sync ref immediately
-        setPosterUrl(data.posterUrl || null)
-        setNextScheduled(data.nextScheduled || null)
-        setNextScheduledLabel(data.nextScheduledLabel || null)
-      }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        if (isDev) console.log('[HLSPlayer] Fetch aborted')
-        return
-      }
-      if (isDev) console.error('[HLSPlayer] Failed to fetch stream settings:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const retryStream = useCallback(async () => {
-    const video = videoRef.current
-    if (!video) return
-
-    const currentSrc = getVideoSrc()
-    if (!currentSrc) return
-
-    try {
-      // First check if stream URL is accessible
-      await fetch(currentSrc, { method: 'HEAD', mode: 'no-cors' })
-      
-      if (isDev) console.log('[HLSPlayer] Stream check completed, attempting reload')
-      
-      // Clear offline state and try to reload
-      setStreamOffline(false)
-      streamOfflineRef.current = false
-      setError('')
-      
-      // Destroy existing HLS instance
-      if (hlsRef.current) {
-        hlsRef.current.destroy()
-        hlsRef.current = null
-      }
-      
-      // Clear retry interval if successful
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current)
-        retryIntervalRef.current = null
-      }
-
-      // Re-trigger the stream setup by updating a state
-      // This will cause the useEffect to re-run
-      setStreamUrl(() => {
-        // Force a re-render by setting to null then back
-        setTimeout(() => setStreamUrl(currentSrc), 100)
-        return null
-      })
-    } catch {
-      if (isDev) console.log('[HLSPlayer] Stream still offline, will retry...')
-    }
-  }, [getVideoSrc])
-
-  const startRetryLoop = useCallback(() => {
-    // Clear any existing retry interval
-    if (retryIntervalRef.current) {
-      clearInterval(retryIntervalRef.current)
-    }
-
-    retryCountRef.current = 0
-    
-    // Retry every 30 seconds (gentle on server)
-    retryIntervalRef.current = setInterval(() => {
-      retryCountRef.current += 1
-      if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
-      
-      // Try to reload the stream
-      retryStream()
-    }, 30000)
-  }, [retryStream])
-
-  const stopRetryLoop = () => {
-    if (retryIntervalRef.current) {
-      clearInterval(retryIntervalRef.current)
-      retryIntervalRef.current = null
-    }
-    retryCountRef.current = 0
-  }
-
-  const getVideoSrc = useCallback(() => {
-    if (streamUrl && isActive) return streamUrl
-    if (src && src.trim().length > 0) return src
-    return ''
-  }, [streamUrl, isActive, src])
 
   const getPoster = () => {
     return (posterUrl && posterUrl.trim().length > 0) ? posterUrl : (poster || '/poster.jpg')
