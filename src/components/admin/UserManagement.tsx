@@ -32,6 +32,20 @@ export default function UserManagement() {
   const [pageSize, setPageSize] = useState(25)
   const [total, setTotal] = useState(0)
 
+  const fetchCounts = useCallback(async () => {
+    try {
+      const [allRes, pendingRes] = await Promise.all([
+        fetch('/api/admin/users?status=all&page=1&pageSize=1'),
+        fetch('/api/admin/users?status=pending&page=1&pageSize=1')
+      ])
+      const allData = allRes.ok ? await allRes.json() : { pagination: { total: 0 } }
+      const pendingData = pendingRes.ok ? await pendingRes.json() : { pagination: { total: 0 } }
+      setCounts({ all: allData.pagination?.total || 0, pending: pendingData.pagination?.total || 0 })
+    } catch (error) {
+      console.error('Failed to fetch member counts:', error)
+    }
+  }, [])
+
   useEffect(() => {
     fetchCounts()
   }, [fetchCounts])
@@ -74,20 +88,6 @@ export default function UserManagement() {
     }, 300)
     searchDebounceTimerRef.current = t
   }
-
-  const fetchCounts = useCallback(async () => {
-    try {
-      const [allRes, pendingRes] = await Promise.all([
-        fetch('/api/admin/users?status=all&page=1&pageSize=1'),
-        fetch('/api/admin/users?status=pending&page=1&pageSize=1')
-      ])
-      const allData = allRes.ok ? await allRes.json() : { pagination: { total: 0 } }
-      const pendingData = pendingRes.ok ? await pendingRes.json() : { pagination: { total: 0 } }
-      setCounts({ all: allData.pagination?.total || 0, pending: pendingData.pagination?.total || 0 })
-    } catch (error) {
-      console.error('Failed to fetch member counts:', error)
-    }
-  }, [])
 
   const handleApprove = async (userId: string, approved: boolean) => {
     try {
