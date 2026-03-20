@@ -1,17 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { serviceScheduleManageSchema, serviceScheduleUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const schedules = await prisma.serviceSchedule.findMany({
@@ -20,21 +17,24 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ schedules })
   } catch (error) {
-    console.error('Get service schedules error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminServiceSchedulesList')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const body = await request.json()
+    const validation = safeValidate(serviceScheduleManageSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const {
@@ -49,15 +49,7 @@ export async function POST(request: NextRequest) {
       specificDate,
       color = 'blue',
       icon = 'sun'
-    } = await request.json()
-
-    if (!name || !time) {
-      return NextResponse.json({ error: 'Name and time are required' }, { status: 400 })
-    }
-
-    if (dayOfMonth !== undefined && (dayOfMonth < 1 || dayOfMonth > 31)) {
-      return NextResponse.json({ error: 'Day of month must be between 1 and 31' }, { status: 400 })
-    }
+    } = validation.data
 
     const schedule = await prisma.serviceSchedule.create({
       data: {
@@ -80,21 +72,24 @@ export async function POST(request: NextRequest) {
       schedule
     })
   } catch (error) {
-    console.error('Create service schedule error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminServiceScheduleCreate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const body = await request.json()
+    const validation = safeValidate(serviceScheduleUpdateSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const {
@@ -110,19 +105,12 @@ export async function PUT(request: NextRequest) {
       specificDate,
       color,
       icon
-    } = await request.json()
-
-    if (!id) {
-      return NextResponse.json({ error: 'Schedule ID is required' }, { status: 400 })
-    }
-
-    if (dayOfMonth !== undefined && dayOfMonth !== null && (dayOfMonth < 1 || dayOfMonth > 31)) {
-      return NextResponse.json({ error: 'Day of month must be between 1 and 31' }, { status: 400 })
-    }
+    } = validation.data
 
     const existing = await prisma.serviceSchedule.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json({ error: 'Service schedule not found' }, { status: 404 })
+      const err = new NotFoundError('Service schedule not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const schedule = await prisma.serviceSchedule.update({
@@ -147,40 +135,38 @@ export async function PUT(request: NextRequest) {
       schedule
     })
   } catch (error) {
-    console.error('Update service schedule error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminServiceScheduleUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { searchParams } = new URL(request.url)
     const id = searchParams.get('id')
-
     if (!id) {
-      return NextResponse.json({ error: 'Schedule ID is required' }, { status: 400 })
+      const err = new ValidationError('Schedule ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const existing = await prisma.serviceSchedule.findUnique({ where: { id } })
     if (!existing) {
-      return NextResponse.json({ error: 'Service schedule not found' }, { status: 404 })
+      const err = new NotFoundError('Service schedule not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     await prisma.serviceSchedule.delete({ where: { id } })
 
     return NextResponse.json({ message: 'Service schedule deleted successfully' })
   } catch (error) {
-    console.error('Delete service schedule error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminServiceScheduleDelete')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

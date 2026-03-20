@@ -1,22 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { paginationSchema, safeValidate, formatZodErrors, createUserSchema } from '@/lib/validation'
+import { ValidationError, ConflictError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status') // 'pending' or 'all'
-    const search = (searchParams.get('search') || '').trim()
+    const validation = safeValidate(
+      paginationSchema,
+      Object.fromEntries(searchParams.entries())
+    )
+
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    const { page, pageSize, status, search } = validation.data
 
     interface WhereClause {
       approved?: boolean
@@ -39,11 +45,6 @@ export async function GET(request: NextRequest) {
       ]
     }
 
-    // Pagination
-    const pageParam = parseInt(searchParams.get('page') || '1', 10)
-    const sizeParam = parseInt(searchParams.get('pageSize') || '25', 10)
-    const page = pageParam > 0 ? pageParam : 1
-    const pageSize = Math.min(100, Math.max(5, isNaN(sizeParam) ? 25 : sizeParam))
     const skip = (page - 1) * pageSize
 
     const [total, users] = await Promise.all([
@@ -67,7 +68,7 @@ export async function GET(request: NextRequest) {
       })
     ])
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       users,
       pagination: {
         total,
@@ -77,37 +78,33 @@ export async function GET(request: NextRequest) {
       }
     })
   } catch (error) {
-    console.error('Get users error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminUsersList')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const body = await request.json()
-    const { title, name, lastName, email, phone, role, approved } = body
+    const validation = safeValidate(createUserSchema, body)
 
-    if (!name || !lastName || !email) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    if (role && !['USER', 'ADMIN'].includes(role)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
-    }
+    const { title, name, lastName, email, phone, approved, role = 'USER' } = validation.data
 
     const existing = await prisma.user.findUnique({ where: { email } })
     if (existing) {
-      return NextResponse.json({ error: 'Member with email already exists' }, { status: 409 })
+      const err = new ConflictError('Member with email already exists')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const user = await prisma.user.create({
@@ -117,8 +114,8 @@ export async function POST(request: NextRequest) {
         lastName,
         email,
         phone: phone ?? null,
-        role: (role ?? 'USER'),
-        approved: typeof approved === 'boolean' ? approved : role === 'ADMIN' ? true : false
+        role,
+        approved: typeof approved === 'boolean' ? approved : role === 'ADMIN'
       },
       select: {
         id: true,
@@ -135,7 +132,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ message: 'Member created', user }, { status: 201 })
   } catch (error) {
-    console.error('Create user error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminUsersCreate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

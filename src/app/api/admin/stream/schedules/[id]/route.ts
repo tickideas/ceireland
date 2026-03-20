@@ -1,32 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { streamScheduleUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse } from '@/lib/errors'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
-// PUT update schedule
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
+    if (!id) {
+      const err = new ValidationError('Schedule ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
     const body = await request.json()
     const validation = safeValidate(streamScheduleUpdateSchema, body)
     if (!validation.success) {
@@ -49,33 +42,27 @@ export async function PUT(
 
     return NextResponse.json(schedule)
   } catch (error) {
-    console.error('Update stream schedule error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminStreamScheduleUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
-// DELETE schedule
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
+    if (!id) {
+      const err = new ValidationError('Schedule ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
 
     await prisma.streamSchedule.delete({
       where: { id }
@@ -83,7 +70,8 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Schedule deleted successfully' })
   } catch (error) {
-    console.error('Delete stream schedule error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminStreamScheduleDelete')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

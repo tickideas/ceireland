@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { attendanceQuerySchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
 function parseDateParam(value: string | null): Date {
   if (!value) return new Date()
-  // Expecting YYYY-MM-DD; fallback to Date parse if needed
   const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
   if (m) {
     const [, y, mo, d] = m
     return new Date(Number(y), Number(mo) - 1, Number(d))
   }
   const parsed = new Date(value)
-  return isNaN(parsed.getTime()) ? new Date() : parsed
+  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
 }
 
 function startOfDay(date: Date): Date {
@@ -33,25 +34,27 @@ function toCsvValue(val: unknown): string {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { searchParams } = new URL(request.url)
-    const dateParam = searchParams.get('date')
-    const format = searchParams.get('format') || 'json'
+    const validation = safeValidate(
+      attendanceQuerySchema,
+      Object.fromEntries(searchParams.entries())
+    )
 
-    const date = parseDateParam(dateParam)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    const date = parseDateParam(validation.data.date ?? null)
+    const format = validation.data.format
     const dayStart = startOfDay(date)
     const dayEnd = endOfDay(date)
 
-    // Find all services on that day
     const services = await prisma.service.findMany({
       where: {
         date: {
@@ -64,7 +67,6 @@ export async function GET(request: NextRequest) {
 
     const serviceIds = services.map((s: { id: string }) => s.id)
 
-    // If no services that day, return empty
     if (serviceIds.length === 0) {
       if (format === 'csv') {
         const headers = [
@@ -89,7 +91,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ date: dayStart, records: [] })
     }
 
-    // Get attendance + joined user/service info
     const attendance = await prisma.attendance.findMany({
       where: { serviceId: { in: serviceIds } },
       include: {
@@ -146,8 +147,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ date: dayStart, records })
   } catch (error) {
-    console.error('Get attendance report error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminAttendance')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
-

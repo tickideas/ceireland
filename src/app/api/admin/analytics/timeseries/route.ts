@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
 type Granularity = 'day' | 'month' | 'year'
 
@@ -26,16 +27,16 @@ function defaultRange(granularity: Granularity) {
   const now = new Date()
   if (granularity === 'day') {
     const end = endOfDay(now)
-    const start = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29)) // last 30 days
+    const start = startOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29))
     return { start, end }
   }
   if (granularity === 'month') {
     const end = endOfMonth(now)
-    const start = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 11, 1)) // last 12 months
+    const start = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 11, 1))
     return { start, end }
   }
   const end = endOfYear(now)
-  const start = startOfYear(new Date(now.getFullYear() - 4, 0, 1)) // last 5 years
+  const start = startOfYear(new Date(now.getFullYear() - 4, 0, 1))
   return { start, end }
 }
 
@@ -139,44 +140,55 @@ function alignEnd(granularity: Granularity, date: Date): Date {
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
+    }
 
     const { searchParams } = new URL(request.url)
     const granularityParam = searchParams.get('granularity')
     if (granularityParam && !['day', 'month', 'year'].includes(granularityParam)) {
-      return NextResponse.json({ error: 'Invalid granularity' }, { status: 400 })
+      const err = new ValidationError('Invalid granularity')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
     const gran = (granularityParam as Granularity) || 'month'
 
     const format = searchParams.get('format') || 'json'
     if (format !== 'json' && format !== 'csv') {
-      return NextResponse.json({ error: 'Invalid format' }, { status: 400 })
+      const err = new ValidationError('Invalid format')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
+
     const fromParam = searchParams.get('from')
     const toParam = searchParams.get('to')
 
     let { start, end } = defaultRange(gran)
     if (fromParam) {
       const parsedFrom = parseLocalDate(fromParam)
-      if (!parsedFrom) return NextResponse.json({ error: 'Invalid from date' }, { status: 400 })
+      if (!parsedFrom) {
+        const err = new ValidationError('Invalid from date')
+        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      }
       start = alignStart(gran, parsedFrom)
     }
     if (toParam) {
       const parsedTo = parseLocalDate(toParam)
-      if (!parsedTo) return NextResponse.json({ error: 'Invalid to date' }, { status: 400 })
+      if (!parsedTo) {
+        const err = new ValidationError('Invalid to date')
+        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      }
       end = alignEnd(gran, parsedTo)
     }
 
     if (start > end) {
-      return NextResponse.json({ error: 'Invalid date range' }, { status: 400 })
+      const err = new ValidationError('Invalid date range')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const totalBuckets = bucketCount(gran, start, end)
     if (totalBuckets > MAX_BUCKETS[gran]) {
-      return NextResponse.json({ error: 'Date range too large' }, { status: 400 })
+      const err = new ValidationError('Date range too large')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     const labels = buildBuckets(gran, start, end)
@@ -185,7 +197,6 @@ export async function GET(request: NextRequest) {
     type UserRow = { bucket: Date; userscreated: bigint; usersapproved: bigint }
     type SimpleRow = { bucket: Date; count: bigint }
 
-    // Use raw SQL with date_trunc to aggregate at DB level - much more efficient than fetching all rows
     const [userRows, attendanceRows, serviceRows] = await Promise.all([
       prisma.$queryRaw<UserRow[]>`
         SELECT
@@ -271,7 +282,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ granularity: gran, start, end, labels, data })
   } catch (error) {
-    console.error('Get timeseries analytics error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminAnalyticsTimeseries')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

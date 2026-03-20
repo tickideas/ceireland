@@ -1,35 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { userRoleSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
-    const { role } = await request.json()
-
-    if (!['USER', 'ADMIN'].includes(role)) {
-      return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+    if (!id) {
+      const err = new ValidationError('User ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
+    const body = await request.json()
+    const validation = safeValidate(userRoleSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    const { role } = validation.data
     const target = await prisma.user.findUnique({ where: { id } })
     if (!target) {
-      return NextResponse.json({ error: 'Member not found' }, { status: 404 })
+      const err = new NotFoundError('Member not found')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     if (target.role === 'ADMIN' && role === 'USER') {
       const otherAdmins = await prisma.user.count({ where: { role: 'ADMIN', NOT: { id } } })
       if (otherAdmins === 0) {
-        return NextResponse.json({ error: 'Cannot demote the last admin' }, { status: 400 })
+        const err = new ValidationError('Cannot demote the last admin')
+        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
       }
     }
 
@@ -51,7 +57,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json({ message: 'Role updated', user })
   } catch (error) {
-    console.error('Update role error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminUserRoleUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

@@ -1,28 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { streamSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse } from '@/lib/errors'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
-    }
-
-    // Get stream settings, schedules, and events in parallel
     const [streamSettings, schedules, events] = await Promise.all([
       prisma.streamSettings.findFirst(),
       prisma.streamSchedule.findMany({ orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] }),
@@ -38,26 +26,17 @@ export async function GET(request: NextRequest) {
       events
     })
   } catch (error) {
-    console.error('Get stream settings error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminStreamGet')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const rateLimitResult = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
-    if (!rateLimitResult.success) {
-      return NextResponse.json({ error: rateLimitResult.error || 'Too many requests' }, { status: 429 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const body = await request.json()
@@ -68,15 +47,11 @@ export async function PUT(request: NextRequest) {
     }
 
     const { streamUrl, posterUrl, isActive, scheduledEndTime } = validation.data
-
-    // Parse scheduledEndTime if provided
     const endTime = scheduledEndTime ? new Date(scheduledEndTime) : null
 
-    // Get existing settings or create new one
     let streamSettings = await prisma.streamSettings.findFirst()
 
     if (streamSettings) {
-      // Update existing
       streamSettings = await prisma.streamSettings.update({
         where: { id: streamSettings.id },
         data: {
@@ -87,7 +62,6 @@ export async function PUT(request: NextRequest) {
         }
       })
     } else {
-      // Create new
       streamSettings = await prisma.streamSettings.create({
         data: {
           streamUrl: streamUrl || null,
@@ -106,7 +80,8 @@ export async function PUT(request: NextRequest) {
       scheduledEndTime: streamSettings.scheduledEndTime
     })
   } catch (error) {
-    console.error('Update stream settings error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminStreamUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }

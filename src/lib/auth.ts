@@ -57,7 +57,8 @@ export async function getUserFromCookies(): Promise<SessionUser | null> {
         title: true,
         phone: true,
         role: true,
-        approved: true
+        approved: true,
+        emailVerified: true
       }
     })
 

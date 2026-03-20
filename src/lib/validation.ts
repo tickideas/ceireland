@@ -71,6 +71,16 @@ export const updateUserSchema = z.object({
   approved: z.boolean().optional(),
 })
 
+export const createUserSchema = z.object({
+  title: z.string().max(50).trim().optional().nullable(),
+  name: z.string().min(1, 'First name is required').max(100).trim(),
+  lastName: z.string().min(1, 'Last name is required').max(100).trim(),
+  email: z.string().email('Invalid email format').max(255).toLowerCase().trim(),
+  phone: z.string().max(50).trim().optional().nullable(),
+  approved: z.boolean().optional(),
+  role: z.enum(['USER', 'ADMIN']).optional(),
+})
+
 export const userApprovalSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
   approved: z.boolean(),
@@ -193,6 +203,25 @@ export const serviceSettingsSchema = z.object({
     .max(1000, 'URL too long')
     .optional()
     .nullable(),
+  authLogoUrl: z
+    .string()
+    .url('Invalid logo URL')
+    .max(1000, 'URL too long')
+    .optional()
+    .nullable(),
+  authWelcomeHeading: z.string().min(1).max(100).trim().optional(),
+  authTagline: z.string().min(1).max(200).trim().optional(),
+  authFooterText: z.string().min(1).max(100).trim().optional(),
+  seoTitle: z.string().max(60).trim().optional().nullable(),
+  seoDescription: z.string().max(160).trim().optional().nullable(),
+  seoImage: z
+    .string()
+    .url('Invalid SEO image URL')
+    .max(1000, 'URL too long')
+    .optional()
+    .nullable(),
+  seoSiteName: z.string().max(100).trim().optional().nullable(),
+  twitterCardType: z.enum(['summary', 'summary_large_image']).optional(),
 })
 
 /**
@@ -326,6 +355,47 @@ export const testEmailSchema = z.object({
     .trim(),
 })
 
+export const ctaSettingsSchema = z.object({
+  givingEnabled: z.boolean().optional(),
+  givingButtonLabel: z.string().min(1).max(100).trim().optional(),
+  givingUrl: z.string().url('Invalid giving URL').max(1000).optional().nullable(),
+  offlineGivingTitle: z.string().min(1).max(100).trim().optional(),
+  offlineGivingDetails: z.string().max(5000).optional().nullable(),
+  givingColorFrom: z.string().min(1).max(20).trim().optional(),
+  givingColorTo: z.string().min(1).max(20).trim().optional(),
+  prayerEnabled: z.boolean().optional(),
+  prayerButtonLabel: z.string().min(1).max(100).trim().optional(),
+  prayerFormTitle: z.string().min(1).max(100).trim().optional(),
+  prayerFormDescription: z.string().max(5000).optional().nullable(),
+  prayerColorFrom: z.string().min(1).max(20).trim().optional(),
+  prayerColorTo: z.string().min(1).max(20).trim().optional(),
+  salvationEnabled: z.boolean().optional(),
+  salvationButtonLabel: z.string().min(1).max(100).trim().optional(),
+  salvationTitle: z.string().min(1).max(100).trim().optional(),
+  salvationPrayer: z.string().max(10000).optional().nullable(),
+  salvationConfirmText: z.string().min(1).max(200).trim().optional(),
+  salvationColorFrom: z.string().min(1).max(20).trim().optional(),
+  salvationColorTo: z.string().min(1).max(20).trim().optional(),
+})
+
+export const serviceScheduleManageSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(100).trim(),
+  description: z.string().max(500).trim().optional().nullable(),
+  time: z.string().min(1, 'Time is required').max(50).trim(),
+  isActive: z.boolean().optional(),
+  order: z.number().int().min(0).max(1000).optional(),
+  recurrenceType: z.enum(['NONE', 'DAILY', 'WEEKLY', 'MONTHLY']).optional(),
+  dayOfWeek: z.enum(['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY']).optional().nullable(),
+  dayOfMonth: z.number().int().min(1).max(31).optional().nullable(),
+  specificDate: z.string().datetime({ message: 'Invalid specific date format' }).optional().nullable(),
+  color: z.string().min(1).max(30).trim().optional(),
+  icon: z.string().min(1).max(30).trim().optional(),
+})
+
+export const serviceScheduleUpdateSchema = serviceScheduleManageSchema.partial().extend({
+  id: z.string().min(1, 'Schedule ID is required'),
+})
+
 /**
  * Type exports for validated data
  */
@@ -333,6 +403,7 @@ export type LoginInput = z.infer<typeof loginSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type ResendVerificationInput = z.infer<typeof resendVerificationSchema>
 export type UpdateUserInput = z.infer<typeof updateUserSchema>
+export type CreateUserInput = z.infer<typeof createUserSchema>
 export type BannerInput = z.infer<typeof bannerSchema>
 export type StreamSettingsInput = z.infer<typeof streamSettingsSchema>
 export type ServiceSettingsInput = z.infer<typeof serviceSettingsSchema>
@@ -343,3 +414,6 @@ export type TimeseriesQueryInput = z.infer<typeof timeseriesQuerySchema>
 export type BulkUserImportInput = z.infer<typeof bulkUserImportSchema>
 export type EmailSettingsInput = z.infer<typeof emailSettingsSchema>
 export type TestEmailInput = z.infer<typeof testEmailSchema>
+export type CTASettingsInput = z.infer<typeof ctaSettingsSchema>
+export type ServiceScheduleManageInput = z.infer<typeof serviceScheduleManageSchema>
+export type ServiceScheduleUpdateInput = z.infer<typeof serviceScheduleUpdateSchema>

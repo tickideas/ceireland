@@ -1,48 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyToken } from '@/lib/auth'
+import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { updateBannerSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { ValidationError, errorToResponse, logError } from '@/lib/errors'
 
-// Use dynamic route param `id` instead of expecting it in body/query
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const body = await request.json()
+    const validation = safeValidate(updateBannerSchema, body)
+    if (!validation.success) {
+      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    const { title, imageUrl, linkUrl, active, order } = await request.json()
     const { id } = await params
     if (!id) {
-      return NextResponse.json({ error: 'Banner ID is required' }, { status: 400 })
+      const err = new ValidationError('Banner ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
-
-    const updateData: { title?: string; imageUrl?: string; linkUrl?: string; active?: boolean; order?: number } = {}
-    if (title !== undefined) updateData.title = title
-    if (imageUrl !== undefined) updateData.imageUrl = imageUrl
-    if (linkUrl !== undefined) updateData.linkUrl = linkUrl
-    if (active !== undefined) updateData.active = active
-    if (order !== undefined) updateData.order = order
 
     const banner = await prisma.banner.update({
       where: { id },
-      data: updateData
+      data: validation.data
     })
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       message: 'Banner updated successfully',
-      banner 
+      banner
     })
   } catch (error) {
-    console.error('Update banner error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminBannerUpdate')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
 
@@ -51,20 +48,15 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const token = request.cookies.get('auth-token')?.value
-    if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const payload = verifyToken(token)
-    if (!payload || payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    const adminResult = await verifyAdminFromRequest(request)
+    if (!adminResult.success) {
+      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
 
     const { id } = await params
-
     if (!id) {
-      return NextResponse.json({ error: 'Banner ID is required' }, { status: 400 })
+      const err = new ValidationError('Banner ID is required')
+      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
     await prisma.banner.delete({
@@ -73,7 +65,8 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Banner deleted successfully' })
   } catch (error) {
-    console.error('Delete banner error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    const err = error instanceof Error ? error : new Error('Unknown error')
+    logError(err, 'AdminBannerDelete')
+    return NextResponse.json(errorToResponse(err), { status: 500 })
   }
 }
