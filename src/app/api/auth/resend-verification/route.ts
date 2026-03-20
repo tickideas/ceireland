@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { resendVerificationSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import { createVerificationToken, sendVerificationEmail } from '@/lib/emailVerification'
-import { RateLimitError, ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { RateLimitError, ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
   try {
@@ -65,8 +65,6 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     )
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'ResendVerification')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'ResendVerification')
   }
 }

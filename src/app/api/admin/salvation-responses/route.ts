@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { errorToResponse, logError } from '@/lib/errors'
+import { errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -42,8 +42,6 @@ export async function GET(request: NextRequest) {
       pendingCount
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminSalvationResponsesList')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminSalvationResponsesList')
   }
 }

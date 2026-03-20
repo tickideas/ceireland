@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(
   request: NextRequest,
@@ -43,9 +43,7 @@ export async function GET(
 
     return NextResponse.json({ openEvent })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventGet')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventGet')
   }
 }
 
@@ -127,9 +125,7 @@ export async function PUT(
       openEvent: updatedEvent
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventUpdate')
   }
 }
 
@@ -162,8 +158,6 @@ export async function DELETE(
       message: 'Open event deleted successfully'
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventDelete')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventDelete')
   }
 }

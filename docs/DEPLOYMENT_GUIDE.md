@@ -47,12 +47,12 @@ export DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require
 # export DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/DBNAME?sslmode=require"
 ```
 
-3. Generate client & push schema (greenfield DB):
+3. Generate client and apply committed migrations:
 
 ```bash
 npm install
 npm run db:generate   # runs prisma generate
-npm run db:push       # prisma db push (no migration history yet)
+npm run db:deploy     # prisma migrate deploy
 ```
 
 4. (Optional) Seed sample data:
@@ -92,7 +92,7 @@ git commit -m "feat: add_some_feature schema"
    - Check new columns/tables exist.
    - Hit impacted API routes for 200 responses.
 
-Fallback (early prototype only): `npx prisma db push` (no migration history). Migrate properly once stable.
+Do not use `prisma db push` in this project. Always create and apply migrations so production, staging, and local environments stay in sync.
 
 ---
 
@@ -145,14 +145,14 @@ Always keep automated daily backups enabled on the DB host.
 ## 9. Common Commands Cheat Sheet
 
 ```bash
-# Init / greenfield schema
-npm run db:push
+# Apply committed migrations (prod/staging)
+npm run db:deploy
 
 # Create migration (dev)
-npx prisma migrate dev --name add_field
+npm run db:migrate -- --name add_field
 
-# Apply committed migrations (prod/staging)
-npx prisma migrate deploy
+# Create migration without applying (for review)
+npm run db:migrate:create -- --name add_field
 
 # Regenerate client
 npm run db:generate
@@ -196,7 +196,7 @@ npx prisma db pull
 # AFTER setting DATABASE_URL (and DIRECT_URL if needed)
 npm ci
 npm run db:generate
-npm run db:push
+npm run db:deploy
 npm run db:seed   # optional
 ```
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { streamScheduleUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function PUT(
   request: NextRequest,
@@ -42,9 +42,7 @@ export async function PUT(
 
     return NextResponse.json(schedule)
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminStreamScheduleUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminStreamScheduleUpdate')
   }
 }
 
@@ -70,8 +68,6 @@ export async function DELETE(
 
     return NextResponse.json({ message: 'Schedule deleted successfully' })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminStreamScheduleDelete')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminStreamScheduleDelete')
   }
 }

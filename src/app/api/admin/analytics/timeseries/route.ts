@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 type Granularity = 'day' | 'month' | 'year'
 
@@ -282,8 +282,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ granularity: gran, start, end, labels, data })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminAnalyticsTimeseries')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminAnalyticsTimeseries')
   }
 }

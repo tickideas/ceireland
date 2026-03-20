@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { sendTestEmail } from '@/lib/email'
 import { testEmailSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
   try {
@@ -35,8 +35,6 @@ export async function POST(request: NextRequest) {
       message: `Test email sent successfully to ${validation.data.recipientEmail}`,
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'LegacyTestEmail')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'LegacyTestEmail')
   }
 }

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { sendApprovalNotification } from '@/lib/email'
 import { userApprovalSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse, logError } from '@/lib/errors'
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -47,8 +47,6 @@ export async function PATCH(request: NextRequest) {
       user
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminUserApproval')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminUserApproval')
   }
 }

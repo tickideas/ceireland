@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { serviceScheduleManageSchema, serviceScheduleUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, NotFoundError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,9 +17,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ schedules })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminServiceSchedulesList')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminServiceSchedulesList')
   }
 }
 
@@ -72,9 +70,7 @@ export async function POST(request: NextRequest) {
       schedule
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminServiceScheduleCreate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminServiceScheduleCreate')
   }
 }
 
@@ -135,9 +131,7 @@ export async function PUT(request: NextRequest) {
       schedule
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminServiceScheduleUpdate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminServiceScheduleUpdate')
   }
 }
 
@@ -165,8 +159,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ message: 'Service schedule deleted successfully' })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminServiceScheduleDelete')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminServiceScheduleDelete')
   }
 }

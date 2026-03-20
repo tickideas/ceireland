@@ -9,7 +9,7 @@ import {
   ymd,
   getDayNameAbbreviated
 } from '@/lib/dates'
-import { errorToResponse, logError } from '@/lib/errors'
+import { errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -117,8 +117,6 @@ export async function GET(request: NextRequest) {
       roleDistribution
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'AdminAnalytics')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'AdminAnalytics')
   }
 }

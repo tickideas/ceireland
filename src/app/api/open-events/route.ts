@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,9 +43,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ openEvents })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventsList')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventsList')
   }
 }
 
@@ -110,8 +108,6 @@ export async function POST(request: NextRequest) {
       openEvent
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'OpenEventCreate')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'OpenEventCreate')
   }
 }

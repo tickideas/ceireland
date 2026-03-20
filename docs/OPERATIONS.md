@@ -34,9 +34,8 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
 - Optional: `RHAPSODY_BASE_URL`, `RHAPSODY_LANG`
 
 4) First-time database setup (one-time)
-- From your laptop (or CI), point env to production DB and create the schema:
-  - Fresh DB: `npx prisma db push --schema ceireland/prisma/schema.prisma`
-  - Prefer migrations later; for a greenfield deploy, push is fine.
+- From your laptop (or CI), point env to production DB and apply the committed migrations:
+  - Fresh DB: `npm run db:deploy`
 - Seed sample data (optional): `npm --prefix ceireland run db:seed` (ensure env vars point to prod DB first)
 
 5) Deploy to Vercel
@@ -45,9 +44,11 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
 - Deploy. Verify server logs and basic flows (login, admin dashboard, stream, banners).
 
 6) Ongoing schema changes (after initial deploy)
-- Recommended: migrate with Postgres migrations. Two easy paths:
-  - Generate and deploy migrations via a staging Postgres: develop with Postgres locally or a staging DB, `prisma migrate dev`, commit migrations, and run `prisma migrate deploy` against production.
-  - If changes are small and downtime is acceptable: `prisma db push --schema ceireland/prisma/schema.prisma` (no history; use carefully in prod).
+- Always use Postgres migrations:
+  - Develop with Postgres locally or against a staging DB.
+  - Create migrations with `npm run db:migrate` (or `npm run db:migrate:create` if you want to review SQL before applying).
+  - Commit the generated files in `prisma/migrations`.
+  - Apply them in production with `npm run db:deploy`.
 
 7) Connection Pooling Notes
 - Prisma Accelerate (recommended for Vercel):
@@ -82,8 +83,8 @@ Use Vercel for the app and a self‑hosted PostgreSQL (via Coolify) for the data
   - Develop schema changes locally: `npx prisma migrate dev --name <change>`.
   - Commit generated migration files.
   - Deploy to production: `npx prisma migrate deploy` (in CI or a one‑off shell).
-- Early prototypes (push only):
-  - `npx prisma db push` applies the current schema without migration history. Use cautiously for production.
+- Do not use `prisma db push` in this project.
+  - It bypasses migration history and risks schema drift between environments.
 - Backups:
   - PostgreSQL (example):
     - Create dump: `pg_dump --no-owner -Fc "$DATABASE_URL" -f backup_$(date +%F).dump`

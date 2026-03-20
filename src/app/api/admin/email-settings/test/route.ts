@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminFromRequest } from '@/lib/adminAuth'
 import { testEmailSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import { sendTestEmail } from '@/lib/email'
-import { ValidationError, errorToResponse, logError } from '@/lib/errors'
+import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 /**
  * POST /api/admin/email-settings/test
@@ -39,8 +39,6 @@ export async function POST(request: NextRequest) {
       message: `Test email sent successfully to ${recipientEmail}`
     })
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    logError(err, 'SendTestEmail')
-    return NextResponse.json(errorToResponse(err), { status: 500 })
+    return errorResponse(error, 'SendTestEmail')
   }
 }
