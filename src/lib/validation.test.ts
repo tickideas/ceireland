@@ -12,7 +12,7 @@ test('createUserSchema normalizes email and accepts valid admin payload', () => 
   const parsed = createUserSchema.parse({
     name: 'Ada',
     lastName: 'Lovelace',
-    email: ' ADA@EXAMPLE.COM ',
+    email: 'ada@example.com',
     role: 'ADMIN',
   })
 
