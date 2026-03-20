@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import packageJson from '../../../../package.json'
 import { prisma } from '@/lib/prisma'
 import { getRateLimitStoreSize } from '@/lib/rateLimit'
 
@@ -18,7 +19,7 @@ export async function GET() {
   const checks = {
     timestamp: new Date().toISOString(),
     status: 'healthy' as 'healthy' | 'degraded' | 'unhealthy',
-    version: process.env.npm_package_version || '0.1.0',
+    version: packageJson.version,
     environment: process.env.NODE_ENV || 'development',
     checks: {
       database: { status: 'unknown' as 'ok' | 'error' | 'unknown', responseTime: 0, error: '' },
@@ -50,21 +51,32 @@ export async function GET() {
   // Check memory usage
   if (typeof process !== 'undefined' && process.memoryUsage) {
     const mem = process.memoryUsage()
-    const usedMB = Math.round(mem.heapUsed / 1024 / 1024)
-    const limitMB = Math.round(mem.heapTotal / 1024 / 1024)
-    const percentage = Math.round((mem.heapUsed / mem.heapTotal) * 100)
+
+    // RSS reflects the process memory footprint more accurately than heapTotal,
+    // which is just the currently allocated V8 heap and not a real host/container limit.
+    const usageMB = Math.round(mem.rss / 1024 / 1024)
+
+    const constrainedBytes = typeof process.constrainedMemory === 'function'
+      ? process.constrainedMemory()
+      : 0
+    const limitMB = constrainedBytes > 0 ? Math.round(constrainedBytes / 1024 / 1024) : 0
+    const percentage = limitMB > 0
+      ? Math.round((usageMB / limitMB) * 100)
+      : 0
 
     let memStatus: 'ok' | 'warning' | 'critical' = 'ok'
-    if (percentage > 90) {
-      memStatus = 'critical'
-      checks.status = 'degraded'
-    } else if (percentage > 75) {
-      memStatus = 'warning'
+    if (limitMB > 0) {
+      if (percentage > 90) {
+        memStatus = 'critical'
+        checks.status = 'degraded'
+      } else if (percentage > 75) {
+        memStatus = 'warning'
+      }
     }
 
     checks.checks.memory = {
       status: memStatus,
-      usage: usedMB,
+      usage: usageMB,
       limit: limitMB,
       percentage,
     }
