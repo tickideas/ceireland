@@ -24,7 +24,7 @@ function makeRequest(body?: unknown, token?: string): NextRequest {
 test('admin service settings route rejects unauthenticated updates', async () => {
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const { PUT } = await import('./route')
-  clearAllRateLimits()
+  await clearAllRateLimits()
 
   const response = await PUT(makeRequest({ appName: 'Church App' }))
   const payload = await response.json()
@@ -38,7 +38,7 @@ test('admin service settings route validates payloads', async () => {
   const authModule = await import('../../../../lib/auth.ts')
   const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const { PUT } = await import('./route')
-  clearAllRateLimits()
+  await clearAllRateLimits()
 
   const token = auth.signToken({ userId: 'admin-1', email: 'admin@example.com', role: 'ADMIN' })
   const response = await PUT(makeRequest({ authLogoUrl: 'notaurl' }, token))

@@ -171,7 +171,7 @@ async function checkRateLimitInDatabase(
     }
   }
 
-  throw new Error('Rate limit transaction failed after retries')
+  throw new Error('Rate limit transaction failed after retries') // unreachable - satisfies TypeScript control flow
 }
 
 export async function checkRateLimit(

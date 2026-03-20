@@ -24,7 +24,7 @@ function makeRequest(body: unknown, token?: string): NextRequest {
 test('legacy test email route rejects unauthenticated requests', async () => {
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const { POST } = await import('./route')
-  clearAllRateLimits()
+  await clearAllRateLimits()
 
   const response = await POST(makeRequest({ recipientEmail: 'member@example.com' }))
   const payload = await response.json()
@@ -38,7 +38,7 @@ test('legacy test email route validates email payloads', async () => {
   const authModule = await import('../../../../lib/auth.ts')
   const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const { POST } = await import('./route')
-  clearAllRateLimits()
+  await clearAllRateLimits()
 
   const token = auth.signToken({ userId: 'admin-1', email: 'admin@example.com', role: 'ADMIN' })
   const response = await POST(makeRequest({ recipientEmail: 'invalid-email' }, token))

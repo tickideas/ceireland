@@ -24,7 +24,7 @@ function makeRequest(body: unknown, token?: string): NextRequest {
 test('admin user approval route rejects unauthenticated requests', async () => {
   const { clearAllRateLimits } = await import('../../../../../lib/rateLimit.ts')
   const { PATCH } = await import('./route')
-  clearAllRateLimits()
+  await clearAllRateLimits()
 
   const response = await PATCH(makeRequest({ userId: 'user-1', approved: true }))
   const payload = await response.json()
@@ -38,7 +38,7 @@ test('admin user approval route validates request payloads', async () => {
   const authModule = await import('../../../../../lib/auth.ts')
   const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const { PATCH } = await import('./route')
-  clearAllRateLimits()
+  await clearAllRateLimits()
 
   const token = auth.signToken({ userId: 'admin-1', email: 'admin@example.com', role: 'ADMIN' })
   const response = await PATCH(makeRequest({ userId: '', approved: 'yes' }, token))
