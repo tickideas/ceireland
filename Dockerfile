@@ -53,7 +53,10 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Install prisma CLI with all transitive deps for runtime migrations
-RUN npm install --no-save --no-package-lock prisma dotenv
+# Note: effect is a transitive dep of @prisma/config and must be listed
+# explicitly because @prisma/config is already copied from the builder stage,
+# so npm does not re-resolve its sub-dependencies.
+RUN npm install --no-save --no-package-lock prisma dotenv effect
 
 USER nextjs
 
