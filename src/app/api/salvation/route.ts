@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   try {
     const clientIP = getClientIP(request)
     
-    const rateLimitResult = checkRateLimit(`salvation:${clientIP}`, RATE_LIMITS.SALVATION)
+    const rateLimitResult = await checkRateLimit(`salvation:${clientIP}`, RATE_LIMITS.SALVATION)
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: rateLimitResult.error || 'Too many requests. Please try again later.' },

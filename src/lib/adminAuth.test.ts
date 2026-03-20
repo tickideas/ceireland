@@ -27,7 +27,7 @@ function makeRequest(token?: string): NextRequest {
 }
 
 test('verifyAdminFromRequest rejects requests without auth token', async () => {
-  clearAllRateLimits()
+  await clearAllRateLimits()
   const { verifyAdminFromRequest } = await loadAdminAuth()
 
   const result = await verifyAdminFromRequest(makeRequest())
@@ -40,7 +40,7 @@ test('verifyAdminFromRequest rejects requests without auth token', async () => {
 })
 
 test('verifyAdminFromRequest rejects non-admin users', async () => {
-  clearAllRateLimits()
+  await clearAllRateLimits()
   const { signToken } = await loadAuth()
   const { verifyAdminFromRequest } = await loadAdminAuth()
   const token = signToken({ userId: 'user-1', email: 'user@example.com', role: 'USER' })
@@ -55,7 +55,7 @@ test('verifyAdminFromRequest rejects non-admin users', async () => {
 })
 
 test('verifyAdminFromRequest accepts admin users', async () => {
-  clearAllRateLimits()
+  await clearAllRateLimits()
   const { signToken } = await loadAuth()
   const { verifyAdminFromRequest } = await loadAdminAuth()
   const token = signToken({ userId: 'admin-1', email: 'admin@example.com', role: 'ADMIN' })
@@ -71,7 +71,7 @@ test('verifyAdminFromRequest accepts admin users', async () => {
 })
 
 test('verifyAdminFromRequest enforces admin rate limiting', async () => {
-  clearAllRateLimits()
+  await clearAllRateLimits()
   const { signToken } = await loadAuth()
   const { verifyAdminFromRequest } = await loadAdminAuth()
   const token = signToken({ userId: 'admin-rate', email: 'admin-rate@example.com', role: 'ADMIN' })

@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check rate limit (5 attempts per hour - prevents spam registrations)
-    const rateLimitResult = checkRateLimit(`register:${email}`, RATE_LIMITS.REGISTER)
+    const rateLimitResult = await checkRateLimit(`register:${email}`, RATE_LIMITS.REGISTER)
     if (!rateLimitResult.success) {
       const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
       const err = new RateLimitError(rateLimitResult.error || 'Too many registration attempts', retryAfter)

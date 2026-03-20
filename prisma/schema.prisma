@@ -363,3 +363,14 @@ model EmailSettings {
 
   @@map("email_settings")
 }
+
+model RateLimitRecord {
+  key       String   @id
+  count     Int
+  resetTime DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([resetTime])
+  @@map("rate_limit_records")
+}

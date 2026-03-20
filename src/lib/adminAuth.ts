@@ -20,7 +20,7 @@ export async function verifyAdmin(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const rateLimit = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
+  const rateLimit = await checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
   if (!rateLimit.success) {
     return NextResponse.json({ error: rateLimit.error }, { status: 429 })
   }
@@ -51,7 +51,7 @@ export async function verifyAdminFromRequest(
     return { success: false, error: 'Unauthorized', status: 401 }
   }
 
-  const rateLimit = checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
+  const rateLimit = await checkRateLimit(`admin:${payload.userId}`, RATE_LIMITS.ADMIN)
   if (!rateLimit.success) {
     return { success: false, error: rateLimit.error || 'Rate limit exceeded', status: 429 }
   }
