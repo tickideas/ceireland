@@ -80,8 +80,9 @@ export const GET = adminRoute({ query: querySchema }, async ({ query }) => {
   }
 
   const labels = buildBuckets(gran, start, end)
-  // Postgres `date_trunc` takes the same string literals as our granularity.
-  const unit = gran
+  // Postgres `date_trunc` accepts the same string literals as our granularity
+  // ('day' | 'month' | 'year'), so the alias is just for query readability.
+  const dateTruncUnit = gran
 
   type UserRow = { bucket: Date; userscreated: bigint; usersapproved: bigint }
   type SimpleRow = { bucket: Date; count: bigint }
@@ -89,7 +90,7 @@ export const GET = adminRoute({ query: querySchema }, async ({ query }) => {
   const [userRows, attendanceRows, serviceRows] = await Promise.all([
     prisma.$queryRaw<UserRow[]>`
       SELECT
-        date_trunc(${unit}, "createdAt")::date AS bucket,
+        date_trunc(${dateTruncUnit}, "createdAt")::date AS bucket,
         COUNT(*)::bigint AS "userscreated",
         COUNT(*) FILTER (WHERE "approved" = TRUE)::bigint AS "usersapproved"
       FROM "users"
@@ -99,7 +100,7 @@ export const GET = adminRoute({ query: querySchema }, async ({ query }) => {
     `,
     prisma.$queryRaw<SimpleRow[]>`
       SELECT
-        date_trunc(${unit}, "checkInTime")::date AS bucket,
+        date_trunc(${dateTruncUnit}, "checkInTime")::date AS bucket,
         COUNT(*)::bigint AS "count"
       FROM "attendance"
       WHERE "checkInTime" BETWEEN ${start} AND ${end}
@@ -108,7 +109,7 @@ export const GET = adminRoute({ query: querySchema }, async ({ query }) => {
     `,
     prisma.$queryRaw<SimpleRow[]>`
       SELECT
-        date_trunc(${unit}, "date")::date AS bucket,
+        date_trunc(${dateTruncUnit}, "date")::date AS bucket,
         COUNT(*)::bigint AS "count"
       FROM "services"
       WHERE "date" BETWEEN ${start} AND ${end}

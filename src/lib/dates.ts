@@ -168,17 +168,13 @@ export function getDayName(dayIndex: number): string {
   return names[dayIndex] ?? ''
 }
 
-/**
- * Format a date as YYYY-MM
- */
-export function ym(d: Date): string {
+/** Format a date as YYYY-MM. Internal; callers should reach for `bucketKey`. */
+function ym(d: Date): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
 }
 
-/**
- * Format a date as YYYY
- */
-export function y(d: Date): string {
+/** Format a date as YYYY. Internal; callers should reach for `bucketKey`. */
+function y(d: Date): string {
   return `${d.getFullYear()}`
 }
 
@@ -186,14 +182,20 @@ export function y(d: Date): string {
  * Get the start of a year
  */
 export function startOfYear(d: Date): Date {
-  return new Date(d.getFullYear(), 0, 1, 0, 0, 0, 0)
+  const date = new Date(d)
+  date.setMonth(0, 1)
+  date.setHours(0, 0, 0, 0)
+  return date
 }
 
 /**
  * Get the end of a year (Dec 31 23:59:59.999)
  */
 export function endOfYear(d: Date): Date {
-  return new Date(d.getFullYear(), 11, 31, 23, 59, 59, 999)
+  const date = new Date(d)
+  date.setMonth(11, 31)
+  date.setHours(23, 59, 59, 999)
+  return date
 }
 
 /**
@@ -313,8 +315,11 @@ export function buildBuckets(
 /**
  * Parse a YYYY, YYYY-MM, or YYYY-MM-DD string as a local-time Date at the
  * start of the day. Falls back to `new Date(input)` for anything else, and
- * returns `null` when the result is invalid. Used by URL query parameters
- * where the caller is the user, not an ISO timestamp.
+ * returns `null` when the result is invalid.
+ *
+ * Strict: `2030-13-01` and `2030-02-31` are rejected (return `null`)
+ * rather than silently normalised by JS Date wrap-around. The post-
+ * construction equality check ensures the calendar components round-trip.
  */
 export function parseLocalDate(input: string): Date | null {
   const match = input.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/)
@@ -326,5 +331,16 @@ export function parseLocalDate(input: string): Date | null {
   const month = Number(match[2] || '1') - 1
   const day = Number(match[3] || '1')
   const parsed = new Date(year, month, day)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
+  if (Number.isNaN(parsed.getTime())) return null
+  // Reject wrap-around: "2030-13-01" → Date(2031, 0, 1), "2030-02-31" →
+  // Date(2030, 2, 3). The Date constructor accepts out-of-range components
+  // by overflowing; the round-trip check rejects them.
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month ||
+    parsed.getDate() !== day
+  ) {
+    return null
+  }
+  return parsed
 }

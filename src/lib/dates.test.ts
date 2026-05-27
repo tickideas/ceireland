@@ -14,8 +14,6 @@ import {
   startOfDay,
   startOfMonth,
   startOfYear,
-  y,
-  ym,
   ymd,
 } from './dates'
 
@@ -26,12 +24,6 @@ import {
 test('ymd formats year-month-day with zero-padding', () => {
   assert.equal(ymd(new Date(2030, 0, 5)), '2030-01-05')
   assert.equal(ymd(new Date(2030, 11, 31)), '2030-12-31')
-})
-
-test('ym and y produce stable bucket labels', () => {
-  const d = new Date(2030, 2, 17)
-  assert.equal(ym(d), '2030-03')
-  assert.equal(y(d), '2030')
 })
 
 // ---------------------------------------------------------------------------
@@ -205,4 +197,20 @@ test('parseLocalDate falls back to Date constructor for non-matching input', () 
 test('parseLocalDate returns null for unparseable input', () => {
   assert.equal(parseLocalDate('not a date'), null)
   assert.equal(parseLocalDate(''), null)
+})
+
+test('parseLocalDate rejects out-of-range months and days (no wrap-around)', () => {
+  // JS Date silently wraps these; the strict round-trip check rejects them.
+  assert.equal(parseLocalDate('2030-13-01'), null, 'month 13 wraps to next year')
+  assert.equal(parseLocalDate('2030-00-01'), null, 'month 00 wraps to previous year')
+  assert.equal(parseLocalDate('2030-02-31'), null, 'Feb 31 wraps to March')
+  assert.equal(parseLocalDate('2030-04-31'), null, 'Apr 31 wraps to May')
+  assert.equal(parseLocalDate('2031-02-29'), null, 'Feb 29 in a non-leap year wraps to March')
+})
+
+test('parseLocalDate accepts leap-year Feb 29', () => {
+  const d = parseLocalDate('2032-02-29')
+  assert.ok(d, '2032 is a leap year')
+  assert.equal(d!.getMonth(), 1)
+  assert.equal(d!.getDate(), 29)
 })
