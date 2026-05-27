@@ -1,11 +1,26 @@
+import { config as loadEnv } from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 import { withAccelerate } from '@prisma/extension-accelerate'
 
+// Load local env vars when running outside Next.js runtime (e.g. tests/scripts)
+loadEnv({ path: '.env.local' })
+loadEnv()
+
 // Use Prisma Accelerate when DATABASE_URL uses Prisma scheme (prisma:// or prisma+)
 const dbUrl = process.env.DATABASE_URL || ''
 const isAccelerate = dbUrl.startsWith('prisma://') || dbUrl.startsWith('prisma+')
+
+function getDatabaseUrl(): string {
+  if (!dbUrl) {
+    throw new Error(
+      'DATABASE_URL environment variable is not set. ' +
+      'Set it in your runtime environment (or .env.local for local development).'
+    )
+  }
+  return dbUrl
+}
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -20,7 +35,7 @@ function createClient(): PrismaClient {
 
   // Direct Postgres via driver adapter with serverless-optimized pool settings
   const pool = new Pool({
-    connectionString: dbUrl,
+    connectionString: getDatabaseUrl(),
     max: Number(process.env.PG_POOL_MAX || 3), // 2-3 connections per instance for serverless
     idleTimeoutMillis: 5_000, // Close idle connections after 5s
     connectionTimeoutMillis: 10_000, // Fail fast if can't connect in 10s

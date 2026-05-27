@@ -1,6 +1,11 @@
+import { config as loadEnv } from 'dotenv'
 import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
+
+// Ensure local env vars are available when running seed directly with tsx
+loadEnv({ path: '.env.local' })
+loadEnv()
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL })
 const adapter = new PrismaPg(pool)
