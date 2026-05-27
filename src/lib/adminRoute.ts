@@ -4,7 +4,6 @@ import { verifyAdminFromRequest } from './adminAuth'
 import type { JWTPayload } from './auth'
 import { safeValidate, formatZodErrors } from './validation'
 import {
-  AppError,
   AuthenticationError,
   RateLimitError,
   ValidationError,
@@ -16,8 +15,10 @@ import {
  *
  * Owns auth, body/query/params validation, error shaping, logging, and
  * JSON wrapping. Handlers contain only domain logic. They may return:
- *   - any plain JS value (including null/undefined) → wrapped in NextResponse.json
- *   - a Response/NextResponse                       → passed through untouched
+ *   - any plain JS value → wrapped in NextResponse.json (status 200)
+ *   - `undefined` → wrapped as JSON `null` (status 200)
+ *   - a Response/NextResponse → passed through untouched (handler owns status,
+ *     headers, and body — use this for non-200 success, streaming, or non-JSON)
  *
  * Throwing an AppError from a handler produces the canonical
  * errorToResponse() shape via errorResponse() (which also logs).
@@ -56,7 +57,10 @@ export type AdminRouteHandler<
 > = (ctx: AdminRouteContext<B, Q, P>) => Promise<unknown> | unknown
 
 interface NextRouteArgs {
-  params?: Promise<Record<string, string>>
+  // Next.js 16 may also pass `string[]` for catch-all routes (`[...slug]`).
+  // No migrated route uses catch-all today, but the type stays permissive so
+  // future catch-all routes can adopt the seam without widening this contract.
+  params?: Promise<Record<string, string | string[]>>
 }
 
 function logContextFromRequest(request: NextRequest): string {
@@ -149,11 +153,7 @@ export function adminRoute<
 
       return wrapResult(result)
     } catch (error) {
-      if (error instanceof AppError) {
-        // Operational error — shape it but skip the noisy stack log unless
-        // it's an internal/programming error. errorResponse handles both.
-        return errorResponse(error, logCtx)
-      }
+      // errorResponse() discriminates AppError vs unknown internally — one path.
       return errorResponse(error, logCtx)
     }
   }
