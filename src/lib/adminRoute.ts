@@ -5,6 +5,7 @@ import type { JWTPayload } from './auth'
 import { safeValidate, formatZodErrors } from './validation'
 import {
   AuthenticationError,
+  NotFoundError,
   RateLimitError,
   ValidationError,
   errorResponse,
@@ -22,6 +23,13 @@ import {
  *
  * Throwing an AppError from a handler produces the canonical
  * errorToResponse() shape via errorResponse() (which also logs).
+ *
+ * Prisma's P2025 ("record to update/delete not found") is mapped to a
+ * generic NotFoundError fallback so any unhandled \`update\`/\`delete\`
+ * against a missing row becomes a 404 instead of a 500. Routes that want
+ * an entity-specific message can still catch the error themselves and
+ * throw \`new NotFoundError('Banner not found')\` — their throw runs
+ * before the seam's catch, so the per-route message wins.
  */
 
 type ZodAny = z.ZodType<unknown>
@@ -92,6 +100,14 @@ function validateOrThrow<S extends ZodAny>(schema: S, data: unknown): z.infer<S>
   return result.data as z.infer<S>
 }
 
+function isPrismaRecordNotFound(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { code?: unknown }).code === 'P2025'
+  )
+}
+
 function wrapResult(result: unknown): NextResponse {
   if (result instanceof Response) {
     // Includes NextResponse (extends Response). Pass through.
@@ -155,6 +171,12 @@ export function adminRoute<
 
       return wrapResult(result)
     } catch (error) {
+      // Prisma P2025 (record to update/delete not found) → 404 fallback.
+      // Per-route catches that throw NotFoundError run first and win on
+      // message; this is only the net for routes that didn't catch it.
+      if (isPrismaRecordNotFound(error)) {
+        return errorResponse(new NotFoundError('Resource not found'), logCtx)
+      }
       // errorResponse() discriminates AppError vs unknown internally — one path.
       return errorResponse(error, logCtx)
     }

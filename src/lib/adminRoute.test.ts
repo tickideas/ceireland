@@ -194,6 +194,49 @@ test('adminRoute hides unknown errors behind a generic 500', async () => {
   assert.notEqual(body.error, 'something internal leaked')
 })
 
+test('adminRoute maps Prisma P2025 to 404 NotFoundError fallback', async () => {
+  await clearAllRateLimits()
+  const { adminRoute } = await loadAdminRoute()
+  const token = await adminToken()
+
+  const handler = adminRoute({}, async () => {
+    // Mimic Prisma's PrismaClientKnownRequestError shape for P2025.
+    const err = Object.assign(new Error('No record found'), { code: 'P2025' })
+    throw err
+  })
+  const res = await handler(makeRequest({ token }))
+
+  assert.equal(res.status, 404)
+  const body = await res.json()
+  assert.equal(body.code, 'NOT_FOUND')
+  assert.equal(body.error, 'Resource not found')
+})
+
+test('adminRoute lets per-route NotFoundError win over the P2025 fallback', async () => {
+  await clearAllRateLimits()
+  const { adminRoute } = await loadAdminRoute()
+  const { NotFoundError } = await import('./errors')
+  const token = await adminToken()
+
+  const handler = adminRoute({}, async () => {
+    try {
+      const err = Object.assign(new Error('No record'), { code: 'P2025' })
+      throw err
+    } catch (e) {
+      if ((e as { code?: string }).code === 'P2025') {
+        throw new NotFoundError('Banner not found')
+      }
+      throw e
+    }
+  })
+  const res = await handler(makeRequest({ token }))
+
+  assert.equal(res.status, 404)
+  const body = await res.json()
+  assert.equal(body.code, 'NOT_FOUND')
+  assert.equal(body.error, 'Banner not found')
+})
+
 test('adminRoute returns 400 on malformed JSON body', async () => {
   await clearAllRateLimits()
   const { adminRoute } = await loadAdminRoute()
