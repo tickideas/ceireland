@@ -2,29 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Heart, HandHeart, Cross, X, Loader2, Check } from 'lucide-react'
-
-interface CTASettings {
-  givingEnabled: boolean
-  givingButtonLabel: string
-  givingUrl: string | null
-  offlineGivingTitle: string
-  offlineGivingDetails: string | null
-  givingColorFrom: string
-  givingColorTo: string
-  prayerEnabled: boolean
-  prayerButtonLabel: string
-  prayerFormTitle: string
-  prayerFormDescription: string | null
-  prayerColorFrom: string
-  prayerColorTo: string
-  salvationEnabled: boolean
-  salvationButtonLabel: string
-  salvationTitle: string
-  salvationPrayer: string | null
-  salvationConfirmText: string
-  salvationColorFrom: string
-  salvationColorTo: string
-}
+import type { CTASettings } from '@/types'
 
 interface ModalProps {
   isOpen: boolean
