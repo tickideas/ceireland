@@ -38,6 +38,7 @@ export function useHlsStream({
   const [nextScheduledLabel, setNextScheduledLabel] = useState<string | null>(null)
   const [countdown, setCountdown] = useState<string>('')
   const retryIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const retryStreamRef = useRef<(() => Promise<void>) | null>(null)
   const retryCountRef = useRef(0)
   const isActiveRef = useRef(false)
   const streamOfflineRef = useRef(false)
@@ -154,6 +155,10 @@ export function useHlsStream({
     }
   }, [getVideoSrc, videoRef])
 
+  useEffect(() => {
+    retryStreamRef.current = retryStream
+  }, [retryStream])
+
   const startRetryLoop = useCallback(() => {
     // Clear any existing retry interval
     if (retryIntervalRef.current) {
@@ -167,18 +172,18 @@ export function useHlsStream({
       retryCountRef.current += 1
       if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
 
-      // Try to reload the stream
-      retryStream()
+      // Try to reload the stream using the latest retry callback.
+      void retryStreamRef.current?.()
     }, 30000)
-  }, [retryStream])
+  }, [])
 
-  const stopRetryLoop = () => {
+  const stopRetryLoop = useCallback(() => {
     if (retryIntervalRef.current) {
       clearInterval(retryIntervalRef.current)
       retryIntervalRef.current = null
     }
     retryCountRef.current = 0
-  }
+  }, [])
 
   useEffect(() => {
     if (isDev) console.log('[HLSPlayer] Component mounted')
@@ -194,6 +199,10 @@ export function useHlsStream({
       if (retryIntervalRef.current) {
         clearInterval(retryIntervalRef.current)
         retryIntervalRef.current = null
+      }
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+        controlsTimeoutRef.current = null
       }
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
@@ -380,6 +389,8 @@ export function useHlsStream({
     const video = videoRef.current
     if (!video) return
 
+    let cancelled = false
+
     const currentSrc = getVideoSrc()
     if (isDev) console.log('[HLSPlayer] Setting up video source:', currentSrc)
 
@@ -399,10 +410,14 @@ export function useHlsStream({
         video.src = currentSrc
         video.load()
         attemptAutoplay(video)
-        return
+        return () => {
+          cancelled = true
+        }
       }
 
       import('hls.js').then(({ default: Hls }) => {
+        if (cancelled) return
+
         if (Hls.isSupported()) {
           if (isDev) console.log('[HLSPlayer] Initializing HLS.js with CORS-friendly config')
 
@@ -417,6 +432,11 @@ export function useHlsStream({
             maxMaxBufferLength: 600,
             loader: Hls.DefaultConfig.loader,
           })
+
+          if (cancelled) {
+            hls.destroy()
+            return
+          }
 
           hlsRef.current = hls
 
@@ -490,12 +510,14 @@ export function useHlsStream({
             })
           }
         } else {
+          if (cancelled) return
           if (isDev) console.error('[HLSPlayer] HLS not supported in this browser')
           video.src = currentSrc
           video.load()
           attemptAutoplay(video)
         }
       }).catch((err) => {
+        if (cancelled) return
         if (isDev) console.error('[HLSPlayer] Failed to load hls.js:', err)
         video.src = currentSrc
         video.load()
@@ -509,6 +531,7 @@ export function useHlsStream({
     }
 
     return () => {
+      cancelled = true
       if (hlsRef.current) {
         if (isDev) console.log('[HLSPlayer] Cleaning up HLS instance')
         hlsRef.current.destroy()
