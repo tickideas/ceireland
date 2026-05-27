@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
+import { csvEscape } from '../csv'
 import { ValidationError, NotFoundError, ConflictError } from '../errors'
 
 // ---------------------------------------------------------------------------
@@ -429,16 +430,16 @@ export async function* exportCsvStream(id: string): AsyncGenerator<string, void,
       const checkIn = new Date(a.checkInTime)
       const iso = checkIn.toISOString()
       const row = [
-        csv(event.title),
-        csv(iso.split('T')[0]),
-        csv(iso.split('T')[1].split('.')[0]),
-        csv(a.userId ? 'Member' : 'Guest'),
-        csv(a.user?.title ?? ''),
-        csv(a.user?.name ?? ''),
-        csv(a.user?.lastName ?? ''),
-        csv(a.user?.email ?? ''),
-        csv(a.sessionId ?? ''),
-        csv(a.ipAddress ?? ''),
+        csvEscape(event.title),
+        csvEscape(iso.split('T')[0]),
+        csvEscape(iso.split('T')[1].split('.')[0]),
+        csvEscape(a.userId ? 'Member' : 'Guest'),
+        csvEscape(a.user?.title ?? ''),
+        csvEscape(a.user?.name ?? ''),
+        csvEscape(a.user?.lastName ?? ''),
+        csvEscape(a.user?.email ?? ''),
+        csvEscape(a.sessionId ?? ''),
+        csvEscape(a.ipAddress ?? ''),
       ].join(',')
       yield row + '\n'
     }
@@ -532,11 +533,3 @@ async function loadEventHeader(
   return event
 }
 
-function csv(value: unknown): string {
-  if (value === null || value === undefined) return ''
-  const s = String(value)
-  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
-    return '"' + s.replace(/"/g, '""') + '"'
-  }
-  return s
-}

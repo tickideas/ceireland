@@ -167,3 +167,180 @@ export function getDayName(dayIndex: number): string {
   const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
   return names[dayIndex] ?? ''
 }
+
+/** Format a date as YYYY-MM. Internal; callers should reach for `bucketKey`. */
+function ym(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`
+}
+
+/** Format a date as YYYY. Internal; callers should reach for `bucketKey`. */
+function y(d: Date): string {
+  return `${d.getFullYear()}`
+}
+
+/**
+ * Get the start of a year
+ */
+export function startOfYear(d: Date): Date {
+  const date = new Date(d)
+  date.setMonth(0, 1)
+  date.setHours(0, 0, 0, 0)
+  return date
+}
+
+/**
+ * Get the end of a year (Dec 31 23:59:59.999)
+ */
+export function endOfYear(d: Date): Date {
+  const date = new Date(d)
+  date.setMonth(11, 31)
+  date.setHours(23, 59, 59, 999)
+  return date
+}
+
+/**
+ * Time-series bucket granularity.
+ */
+export type BucketGranularity = 'day' | 'month' | 'year'
+
+/**
+ * Snap a date down to the start of its bucket.
+ */
+export function alignStart(granularity: BucketGranularity, d: Date): Date {
+  switch (granularity) {
+    case 'day':
+      return startOfDay(d)
+    case 'month':
+      return startOfMonth(d)
+    case 'year':
+      return startOfYear(d)
+  }
+}
+
+/**
+ * Snap a date up to the end of its bucket.
+ */
+export function alignEnd(granularity: BucketGranularity, d: Date): Date {
+  switch (granularity) {
+    case 'day':
+      return endOfDay(d)
+    case 'month':
+      return endOfMonth(d)
+    case 'year':
+      return endOfYear(d)
+  }
+}
+
+/**
+ * The canonical label for the bucket `d` falls into. Mirrors what the
+ * Postgres `date_trunc(...)::date` query produces on the SQL side.
+ */
+export function bucketKey(granularity: BucketGranularity, d: Date): string {
+  switch (granularity) {
+    case 'day':
+      return ymd(d)
+    case 'month':
+      return ym(d)
+    case 'year':
+      return y(d)
+  }
+}
+
+/**
+ * Inclusive count of buckets between `start` and `end` for the given
+ * granularity. Assumes `start <= end`; returns 1 when both sit in the same
+ * bucket.
+ */
+export function bucketCount(
+  granularity: BucketGranularity,
+  start: Date,
+  end: Date,
+): number {
+  switch (granularity) {
+    case 'day': {
+      // Compare via UTC-anchored calendar days so a DST transition (one
+      // 23-hour local day) cannot drop a bucket. Local-time diff would
+      // floor (71h / 24h) = 2 across spring-forward when the true answer
+      // is 3.
+      const a = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())
+      const b = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
+      const msPerDay = 24 * 60 * 60 * 1000
+      return Math.round((b - a) / msPerDay) + 1
+    }
+    case 'month':
+      return (
+        (end.getFullYear() - start.getFullYear()) * 12 +
+        (end.getMonth() - start.getMonth()) +
+        1
+      )
+    case 'year':
+      return end.getFullYear() - start.getFullYear() + 1
+  }
+}
+
+/**
+ * Ordered list of `bucketKey` labels covering `[start, end]` inclusive.
+ */
+export function buildBuckets(
+  granularity: BucketGranularity,
+  start: Date,
+  end: Date,
+): string[] {
+  const labels: string[] = []
+  const cursor = new Date(start)
+  switch (granularity) {
+    case 'day':
+      while (cursor <= end) {
+        labels.push(ymd(cursor))
+        cursor.setDate(cursor.getDate() + 1)
+      }
+      return labels
+    case 'month':
+      cursor.setDate(1)
+      while (cursor <= end) {
+        labels.push(ym(cursor))
+        cursor.setMonth(cursor.getMonth() + 1)
+      }
+      return labels
+    case 'year':
+      cursor.setMonth(0, 1)
+      while (cursor <= end) {
+        labels.push(y(cursor))
+        cursor.setFullYear(cursor.getFullYear() + 1)
+      }
+      return labels
+  }
+}
+
+/**
+ * Parse a YYYY, YYYY-MM, or YYYY-MM-DD string as a local-time Date at the
+ * start of the day. Falls back to `new Date(input)` for anything else, and
+ * returns `null` when the result is invalid.
+ *
+ * Strict: `2030-13-01` and `2030-02-31` are rejected (return `null`)
+ * rather than silently normalised by JS Date wrap-around. The post-
+ * construction equality check ensures the calendar components round-trip.
+ */
+export function parseLocalDate(input: string): Date | null {
+  const match = input.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/)
+  if (!match) {
+    const fallback = new Date(input)
+    return Number.isNaN(fallback.getTime()) ? null : fallback
+  }
+  const year = Number(match[1])
+  const month = Number(match[2] || '1') - 1
+  const day = Number(match[3] || '1')
+  const parsed = new Date(year, month, day)
+  if (Number.isNaN(parsed.getTime())) return null
+  // Reject wrap-around: "2030-13-01" → Date(2031, 0, 1), "2030-02-31" →
+  // Date(2030, 2, 3). The Date constructor accepts out-of-range components
+  // by overflowing; the round-trip check rejects them.
+  if (
+    parsed.getFullYear() !== year ||
+    parsed.getMonth() !== month ||
+    parsed.getDate() !== day
+  ) {
+    return null
+  }
+  return parsed
+}

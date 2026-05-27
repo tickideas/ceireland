@@ -1,20 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
-
-function startOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
-}
-
-function endOfDay(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
-}
-
-const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'] as const
+import { endOfDay, getDayName, startOfDay } from '@/lib/dates'
 
 function serviceTitleFor(date: Date) {
-  const day = date.getDay()
-  return `${DAY_NAMES[day]} Service`
+  return `${getDayName(date.getDay())} Service`
 }
 
 export async function POST(request: NextRequest) {

@@ -2,37 +2,16 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { adminRoute } from '@/lib/adminRoute'
 import { attendanceQuerySchema } from '@/lib/validation'
+import { csvEscape } from '@/lib/csv'
+import { endOfDay, parseLocalDate, startOfDay } from '@/lib/dates'
 
-function parseDateParam(value: string | null): Date {
+function resolveDate(value: string | null): Date {
   if (!value) return new Date()
-  const m = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
-  if (m) {
-    const [, y, mo, d] = m
-    return new Date(Number(y), Number(mo) - 1, Number(d))
-  }
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? new Date() : parsed
-}
-
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0)
-}
-
-function endOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999)
-}
-
-function toCsvValue(val: unknown): string {
-  if (val === null || val === undefined) return ''
-  const s = String(val)
-  if (s.includes('"') || s.includes(',') || s.includes('\n')) {
-    return '"' + s.replace(/"/g, '""') + '"'
-  }
-  return s
+  return parseLocalDate(value) ?? new Date()
 }
 
 export const GET = adminRoute({ query: attendanceQuerySchema }, async ({ query }) => {
-  const date = parseDateParam(query.date ?? null)
+  const date = resolveDate(query.date ?? null)
   const format = query.format
   const dayStart = startOfDay(date)
   const dayEnd = endOfDay(date)
@@ -103,14 +82,14 @@ export const GET = adminRoute({ query: attendanceQuerySchema }, async ({ query }
       'Check-in Time'
     ]
     const rows = records.map((r: typeof records[number]) => [
-      toCsvValue(r.serviceTitle),
-      toCsvValue(new Date(r.serviceDate).toISOString()),
-      toCsvValue(r.userTitle),
-      toCsvValue(r.firstName),
-      toCsvValue(r.lastName),
-      toCsvValue(r.email),
-      toCsvValue(r.phone),
-      toCsvValue(new Date(r.checkInTime).toISOString())
+      csvEscape(r.serviceTitle),
+      csvEscape(new Date(r.serviceDate).toISOString()),
+      csvEscape(r.userTitle),
+      csvEscape(r.firstName),
+      csvEscape(r.lastName),
+      csvEscape(r.email),
+      csvEscape(r.phone),
+      csvEscape(new Date(r.checkInTime).toISOString())
     ].join(','))
     const csv = [headers.join(','), ...rows].join('\n') + '\n'
     return new NextResponse(csv, {
