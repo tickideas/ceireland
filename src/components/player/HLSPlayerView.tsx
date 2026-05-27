@@ -23,7 +23,7 @@ interface HLSPlayerViewProps {
   isFullscreen: boolean
   showControls: boolean
   volume: number
-  poster: string
+  posterSrc: string
   retryStream: () => Promise<void>
   togglePlay: () => void
   toggleFullscreen: () => Promise<void>
@@ -55,7 +55,7 @@ export default function HLSPlayerView({
   isFullscreen,
   showControls,
   volume,
-  poster,
+  posterSrc,
   retryStream,
   togglePlay,
   toggleFullscreen,
@@ -149,7 +149,7 @@ export default function HLSPlayerView({
         ref={videoRef}
         className={`w-full h-full ${(!isActive && !loading) || streamOffline ? 'hidden' : ''}`}
         preload="metadata"
-        poster={poster}
+        poster={posterSrc}
         playsInline
         onClick={togglePlay}
       >

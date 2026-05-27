@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type React from 'react'
 import type Hls from 'hls.js'
 import { formatCountdown, getPlayerPoster } from './playerUtils'
+import { useRetryLoop } from './useRetryLoop'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -37,9 +38,8 @@ export function useHlsStream({
   const [nextScheduled, setNextScheduled] = useState<string | null>(null)
   const [nextScheduledLabel, setNextScheduledLabel] = useState<string | null>(null)
   const [countdown, setCountdown] = useState<string>('')
-  const retryIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const retryStreamRef = useRef<(() => Promise<void>) | null>(null)
-  const retryCountRef = useRef(0)
+  const retryReloadTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const mountedRef = useRef(false)
   const isActiveRef = useRef(false)
   const streamOfflineRef = useRef(false)
   const countdownEndedRef = useRef(false)
@@ -94,6 +94,7 @@ export function useHlsStream({
       const response = await fetch('/api/stream', { signal })
       if (response.ok) {
         const data = await response.json()
+        if (!mountedRef.current) return
         if (isDev) console.log('[HLSPlayer] Stream settings fetched:', { streamUrl: data.streamUrl, isActive: data.isActive, posterUrl: data.posterUrl })
         setStreamUrl(data.streamUrl)
         setIsActive(data.isActive)
@@ -109,7 +110,7 @@ export function useHlsStream({
       }
       if (isDev) console.error('[HLSPlayer] Failed to fetch stream settings:', error)
     } finally {
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
   }
 
@@ -121,15 +122,12 @@ export function useHlsStream({
     if (!currentSrc) return
 
     try {
-      // First check if stream URL is accessible
+      // First check if stream URL is reachable. With no-cors this is only a
+      // reachability hint: the response is opaque, so do not clear the offline
+      // UI until the player proves readiness via manifest/canplay/play events.
       await fetch(currentSrc, { method: 'HEAD', mode: 'no-cors' })
 
       if (isDev) console.log('[HLSPlayer] Stream check completed, attempting reload')
-
-      // Clear offline state and try to reload
-      setStreamOffline(false)
-      streamOfflineRef.current = false
-      setError('')
 
       // Destroy existing HLS instance
       if (hlsRef.current) {
@@ -137,56 +135,35 @@ export function useHlsStream({
         hlsRef.current = null
       }
 
-      // Clear retry interval if successful
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current)
-        retryIntervalRef.current = null
+      // Re-trigger the stream setup by updating a state. Keep the retry loop
+      // running until manifest/canplay/play confirms the stream is usable.
+      if (retryReloadTimeoutRef.current) {
+        clearTimeout(retryReloadTimeoutRef.current)
+        retryReloadTimeoutRef.current = null
       }
-
-      // Re-trigger the stream setup by updating a state
-      // This will cause the useEffect to re-run
-      setStreamUrl(() => {
-        // Force a re-render by setting to null then back
-        setTimeout(() => setStreamUrl(currentSrc), 100)
-        return null
-      })
+      setStreamUrl(null)
+      retryReloadTimeoutRef.current = setTimeout(() => {
+        if (!mountedRef.current) return
+        setStreamUrl(currentSrc)
+        retryReloadTimeoutRef.current = null
+      }, 100)
     } catch {
       if (isDev) console.log('[HLSPlayer] Stream still offline, will retry...')
     }
   }, [getVideoSrc, videoRef])
 
-  useEffect(() => {
-    retryStreamRef.current = retryStream
-  }, [retryStream])
+  const { startRetryLoop, stopRetryLoop } = useRetryLoop({ onRetry: retryStream })
 
-  const startRetryLoop = useCallback(() => {
-    // Clear any existing retry interval
-    if (retryIntervalRef.current) {
-      clearInterval(retryIntervalRef.current)
-    }
-
-    retryCountRef.current = 0
-
-    // Retry every 30 seconds (gentle on server)
-    retryIntervalRef.current = setInterval(() => {
-      retryCountRef.current += 1
-      if (isDev) console.log(`[HLSPlayer] Retry attempt ${retryCountRef.current}`)
-
-      // Try to reload the stream using the latest retry callback.
-      void retryStreamRef.current?.()
-    }, 30000)
-  }, [])
-
-  const stopRetryLoop = useCallback(() => {
-    if (retryIntervalRef.current) {
-      clearInterval(retryIntervalRef.current)
-      retryIntervalRef.current = null
-    }
-    retryCountRef.current = 0
-  }, [])
+  const markStreamReady = useCallback(() => {
+    setStreamOffline(false)
+    streamOfflineRef.current = false
+    setError('')
+    stopRetryLoop()
+  }, [stopRetryLoop])
 
   useEffect(() => {
     if (isDev) console.log('[HLSPlayer] Component mounted')
+    mountedRef.current = true
     abortControllerRef.current = new AbortController()
     fetchStreamSettings(abortControllerRef.current.signal)
     return () => {
@@ -196,9 +173,11 @@ export function useHlsStream({
         hlsRef.current.destroy()
         hlsRef.current = null
       }
-      if (retryIntervalRef.current) {
-        clearInterval(retryIntervalRef.current)
-        retryIntervalRef.current = null
+      mountedRef.current = false
+      stopRetryLoop()
+      if (retryReloadTimeoutRef.current) {
+        clearTimeout(retryReloadTimeoutRef.current)
+        retryReloadTimeoutRef.current = null
       }
       if (controlsTimeoutRef.current) {
         clearTimeout(controlsTimeoutRef.current)
@@ -209,7 +188,7 @@ export function useHlsStream({
         abortControllerRef.current = null
       }
     }
-  }, [])
+  }, [stopRetryLoop])
 
   useEffect(() => {
     const video = videoRef.current
@@ -219,10 +198,7 @@ export function useHlsStream({
       if (isDev) console.log('[HLSPlayer] Video play event fired')
       setIsPlaying(true)
       // Clear offline state when playback succeeds
-      setStreamOffline(false)
-      streamOfflineRef.current = false
-      setError('')
-      stopRetryLoop()
+      markStreamReady()
       if (!checkedInRef.current) {
         checkedInRef.current = true
         fetch('/api/attendance/checkin', { method: 'POST' }).catch((e) => {
@@ -286,7 +262,11 @@ export function useHlsStream({
     }
     const handleLoadedMetadata = () => { if (isDev) console.log('[HLSPlayer] Video loadedmetadata'); emitResize() }
     const handleLoadedData = () => { if (isDev) console.log('[HLSPlayer] Video loadeddata'); emitResize() }
-    const handleCanPlay = () => { if (isDev) console.log('[HLSPlayer] Video canplay'); emitResize() }
+    const handleCanPlay = () => {
+      if (isDev) console.log('[HLSPlayer] Video canplay')
+      markStreamReady()
+      emitResize()
+    }
     const handleEnded = () => {
       if (isDev) console.log('[HLSPlayer] Video ended')
       // If service is still active but stream ended, show offline state
@@ -445,6 +425,7 @@ export function useHlsStream({
 
           hls.on(Hls.Events.MANIFEST_PARSED, () => {
             if (isDev) console.log('[HLSPlayer] HLS manifest parsed successfully')
+            markStreamReady()
             attemptAutoplay(video)
           })
 
@@ -538,7 +519,7 @@ export function useHlsStream({
         hlsRef.current = null
       }
     }
-  }, [getVideoSrc, isActive, src, startRetryLoop, streamUrl, videoRef])
+  }, [getVideoSrc, isActive, markStreamReady, src, startRetryLoop, streamUrl, videoRef])
 
 
   const togglePlay = useCallback(() => {
@@ -754,7 +735,7 @@ export function useHlsStream({
     isFullscreen,
     showControls,
     volume,
-    poster: getPlayerPoster(posterUrl, poster),
+    posterSrc: getPlayerPoster(posterUrl, poster),
     retryStream,
     togglePlay,
     toggleFullscreen,
