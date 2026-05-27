@@ -42,7 +42,7 @@ export function useHlsStream({
   const isActiveRef = useRef(false)
   const streamOfflineRef = useRef(false)
   const countdownEndedRef = useRef(false)
-  
+
   // Custom controls state
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
@@ -261,7 +261,7 @@ export function useHlsStream({
       if (isActiveRef.current) {
         // Abort errors (code 1) are usually from source changes, ignore silently
         if (errorCode === 1) return
-        
+
         setStreamOffline(true)
         streamOfflineRef.current = true
         setError('')
@@ -316,7 +316,7 @@ export function useHlsStream({
     }
 
     handleVolumeChange()
-    
+
     document.addEventListener('fullscreenchange', handleFullscreenChange)
 
     video.addEventListener('play', handlePlay)
@@ -572,12 +572,12 @@ export function useHlsStream({
     const updateCountdown = () => {
       const result = formatCountdown(nextScheduled)
       setCountdown(result.text)
-      
+
       // When countdown ends, start polling to switch to player
       if (result.ended && !countdownEndedRef.current) {
         countdownEndedRef.current = true
         fetchStreamSettings()
-        
+
         // Poll every 10 seconds until stream becomes active
         pollInterval = setInterval(() => {
           fetchStreamSettings()
@@ -634,6 +634,32 @@ export function useHlsStream({
     }
   }
 
+  const hideControlsIfPlaying = useCallback(() => {
+    if (isPlaying) {
+      setShowControls(false)
+    }
+  }, [isPlaying])
+
+  const unmute = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    video.muted = false
+    if (video.volume === 0) {
+      video.volume = 1
+      setVolume(1)
+    }
+    setIsMuted(false)
+  }, [videoRef])
+
+  const toggleMute = useCallback(() => {
+    const video = videoRef.current
+    if (!video) return
+
+    video.muted = !video.muted
+    setIsMuted(video.muted)
+  }, [videoRef])
+
   // Handle volume change
   const handleVolumeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const video = videoRef.current
@@ -665,11 +691,7 @@ export function useHlsStream({
           break
         case 'm':
           e.preventDefault()
-          const video = videoRef.current
-          if (video) {
-            video.muted = !video.muted
-            setIsMuted(video.muted)
-          }
+          toggleMute()
           break
         case 'arrowright':
           e.preventDefault()
@@ -690,7 +712,7 @@ export function useHlsStream({
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [duration, isActive, isPlaying, loading, streamOffline, toggleFullscreen, togglePlay, videoRef])
+  }, [duration, isActive, loading, streamOffline, toggleFullscreen, toggleMute, togglePlay, videoRef])
 
 
   return {
@@ -710,12 +732,12 @@ export function useHlsStream({
     showControls,
     volume,
     poster: getPlayerPoster(posterUrl, poster),
-    setIsMuted,
-    setShowControls,
-    setVolume,
     retryStream,
     togglePlay,
     toggleFullscreen,
+    hideControlsIfPlaying,
+    unmute,
+    toggleMute,
     handleProgressClick,
     handleMouseMove,
     handleVolumeInput,

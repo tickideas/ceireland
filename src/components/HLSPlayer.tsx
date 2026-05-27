@@ -22,7 +22,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       ref={containerRef}
       className="relative w-full h-full bg-black group"
       onMouseMove={player.handleMouseMove}
-      onMouseLeave={() => player.isPlaying && player.setShowControls(false)}
+      onMouseLeave={player.hideControlsIfPlaying}
     >
       {player.loading && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900 text-white">
@@ -125,13 +125,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       {player.isPlaying && player.isMuted && !player.error && !player.loading && !player.streamOffline && (
         <div
           className="absolute inset-0 flex items-center justify-center cursor-pointer bg-black/0 touch-manipulation"
-          onClick={() => {
-            const v = videoRef.current
-            if (!v) return
-            v.muted = false
-            if (v.volume === 0) v.volume = 1
-            player.setIsMuted(false)
-          }}
+          onClick={player.unmute}
           aria-label="Click to unmute"
           role="button"
         >
@@ -213,13 +207,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
             {/* Volume */}
             <div className="flex items-center gap-2 group/volume">
               <button
-                onClick={() => {
-                  const video = videoRef.current
-                  if (video) {
-                    video.muted = !video.muted
-                    player.setIsMuted(video.muted)
-                  }
-                }}
+                onClick={player.toggleMute}
                 className="text-white hover:text-white/80 transition-colors p-1"
                 aria-label={player.isMuted ? 'Unmute' : 'Mute'}
               >
