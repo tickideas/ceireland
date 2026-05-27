@@ -139,8 +139,10 @@ export function adminRoute<
 
       let params: unknown = undefined
       if (schemas.params) {
-        const raw = args?.params ? await args.params : {}
-        params = validateOrThrow(schemas.params, raw ?? {})
+        // `await undefined` resolves to undefined, so the optional chain is
+        // safe even when Next.js passes no second arg (non-dynamic routes).
+        const raw = (await args?.params) ?? {}
+        params = validateOrThrow(schemas.params, raw)
       }
 
       const result = await handler({
