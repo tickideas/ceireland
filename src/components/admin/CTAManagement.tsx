@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { Heart, HandHeart, Cross } from 'lucide-react'
 import SettingsTab from './cta/SettingsTab'
 import PrayersTab from './cta/PrayersTab'
@@ -13,9 +13,9 @@ export default function CTAManagement() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
 
-  // Wrapped in useCallback so child effects don't re-fire on every parent render.
-  const handleUnreadCountChange = useCallback((c: number) => setUnreadCount(c), [])
-  const handlePendingCountChange = useCallback((c: number) => setPendingCount(c), [])
+  // Each tab stores its callback in a useRef internally, so we can pass the
+  // raw state setters (referentially stable by React contract) without an
+  // identity-stabilising wrapper here.
 
   return (
     <div className="space-y-6">
@@ -74,8 +74,8 @@ export default function CTAManagement() {
 
         <div className="p-6">
           {activeTab === 'settings' && <SettingsTab />}
-          {activeTab === 'prayers' && <PrayersTab onUnreadCountChange={handleUnreadCountChange} />}
-          {activeTab === 'salvation' && <SalvationTab onPendingCountChange={handlePendingCountChange} />}
+          {activeTab === 'prayers' && <PrayersTab onUnreadCountChange={setUnreadCount} />}
+          {activeTab === 'salvation' && <SalvationTab onPendingCountChange={setPendingCount} />}
         </div>
       </div>
     </div>

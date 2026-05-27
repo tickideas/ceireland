@@ -105,6 +105,31 @@ export interface ServiceSettings {
   updatedAt: Date
 }
 
+// CTA / Call-to-Action settings (shared between the admin form and the
+// public-facing button render).
+export interface CTASettings {
+  givingEnabled: boolean
+  givingButtonLabel: string
+  givingUrl: string | null
+  offlineGivingTitle: string
+  offlineGivingDetails: string | null
+  givingColorFrom: string
+  givingColorTo: string
+  prayerEnabled: boolean
+  prayerButtonLabel: string
+  prayerFormTitle: string
+  prayerFormDescription: string | null
+  prayerColorFrom: string
+  prayerColorTo: string
+  salvationEnabled: boolean
+  salvationButtonLabel: string
+  salvationTitle: string
+  salvationPrayer: string | null
+  salvationConfirmText: string
+  salvationColorFrom: string
+  salvationColorTo: string
+}
+
 // API Response types
 export type ApiResponse<T> = {
   success: true

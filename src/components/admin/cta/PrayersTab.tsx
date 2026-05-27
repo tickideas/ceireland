@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Loader2, Mail, Phone, ChevronDown, ChevronUp, Archive, Trash2, Eye, EyeOff } from 'lucide-react'
 
 interface PrayerRequest {
@@ -37,6 +37,15 @@ export default function PrayersTab({ onUnreadCountChange }: PrayersTabProps) {
   const [unreadCount, setUnreadCount] = useState(0)
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  // Store the callback in a ref so callers don't have to memoise it. Without
+  // this, an inline `<PrayersTab onUnreadCountChange={(c) => ...}/>` would give
+  // the prop a new identity on every parent render, refetching prayer requests
+  // each time. The ref keeps fetch's dep array narrow.
+  const onUnreadCountChangeRef = useRef(onUnreadCountChange)
+  useEffect(() => {
+    onUnreadCountChangeRef.current = onUnreadCountChange
+  }, [onUnreadCountChange])
+
   const fetchPrayerRequests = useCallback(async () => {
     setLoading(true)
     try {
@@ -45,14 +54,14 @@ export default function PrayersTab({ onUnreadCountChange }: PrayersTabProps) {
         const data = await res.json()
         setPrayerRequests(data.requests)
         setUnreadCount(data.unreadCount)
-        onUnreadCountChange?.(data.unreadCount)
+        onUnreadCountChangeRef.current?.(data.unreadCount)
       }
     } catch (error) {
       console.error('Error fetching prayer requests:', error)
     } finally {
       setLoading(false)
     }
-  }, [showArchived, onUnreadCountChange])
+  }, [showArchived])
 
   useEffect(() => {
     fetchPrayerRequests()

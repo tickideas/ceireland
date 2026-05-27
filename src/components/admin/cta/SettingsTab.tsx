@@ -2,30 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Heart, HandHeart, Cross, Check, X, Loader2 } from 'lucide-react'
-
-interface CTASettings {
-  id: string
-  givingEnabled: boolean
-  givingButtonLabel: string
-  givingUrl: string | null
-  offlineGivingTitle: string
-  offlineGivingDetails: string | null
-  givingColorFrom: string
-  givingColorTo: string
-  prayerEnabled: boolean
-  prayerButtonLabel: string
-  prayerFormTitle: string
-  prayerFormDescription: string | null
-  prayerColorFrom: string
-  prayerColorTo: string
-  salvationEnabled: boolean
-  salvationButtonLabel: string
-  salvationTitle: string
-  salvationPrayer: string | null
-  salvationConfirmText: string
-  salvationColorFrom: string
-  salvationColorTo: string
-}
+import type { CTASettings } from '@/types'
 
 export default function SettingsTab() {
   const [settings, setSettings] = useState<CTASettings | null>(null)

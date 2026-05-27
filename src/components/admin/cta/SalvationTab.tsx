@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Check, Loader2, Mail, Phone, ChevronDown, ChevronUp, Trash2 } from 'lucide-react'
 
 interface SalvationResponse {
@@ -35,6 +35,14 @@ export default function SalvationTab({ onPendingCountChange }: SalvationTabProps
   const [pendingCount, setPendingCount] = useState(0)
   const [expanded, setExpanded] = useState<string | null>(null)
 
+  // Store the callback in a ref so callers don't have to memoise it. See
+  // PrayersTab for the rationale — keeps fetch's dep array narrow and lets
+  // parents pass inline arrows without triggering refetches on every render.
+  const onPendingCountChangeRef = useRef(onPendingCountChange)
+  useEffect(() => {
+    onPendingCountChangeRef.current = onPendingCountChange
+  }, [onPendingCountChange])
+
   const fetchSalvationResponses = useCallback(async () => {
     setLoading(true)
     try {
@@ -43,14 +51,14 @@ export default function SalvationTab({ onPendingCountChange }: SalvationTabProps
         const data = await res.json()
         setSalvationResponses(data.responses)
         setPendingCount(data.pendingCount)
-        onPendingCountChange?.(data.pendingCount)
+        onPendingCountChangeRef.current?.(data.pendingCount)
       }
     } catch (error) {
       console.error('Error fetching salvation responses:', error)
     } finally {
       setLoading(false)
     }
-  }, [showFollowedUp, onPendingCountChange])
+  }, [showFollowedUp])
 
   useEffect(() => {
     fetchSalvationResponses()
