@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type Hls from 'hls.js'
+import { useViewerHeartbeat } from './player/useViewerHeartbeat'
 
 const isDev = process.env.NODE_ENV !== 'production'
 
@@ -15,8 +16,6 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const hlsRef = useRef<Hls | null>(null)
   const autoplayAttemptedRef = useRef(false)
   const checkedInRef = useRef(false)
-  const sessionIdRef = useRef<string | null>(null)
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [error, setError] = useState('')
@@ -26,7 +25,6 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const [loading, setLoading] = useState(true)
   const [isMuted, setIsMuted] = useState(true)
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
-  const [viewerCount, setViewerCount] = useState<number | null>(null)
   const [nextScheduled, setNextScheduled] = useState<string | null>(null)
   const [nextScheduledLabel, setNextScheduledLabel] = useState<string | null>(null)
   const [countdown, setCountdown] = useState<string>('')
@@ -35,6 +33,7 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
   const isActiveRef = useRef(false)
   const streamOfflineRef = useRef(false)
   const countdownEndedRef = useRef(false)
+  const { viewerCount } = useViewerHeartbeat({ isPlaying, isActive })
   
   // Custom controls state
   const [currentTime, setCurrentTime] = useState(0)
@@ -177,7 +176,6 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
 
   useEffect(() => {
     if (isDev) console.log('[HLSPlayer] Component mounted')
-    sessionIdRef.current = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`
     abortControllerRef.current = new AbortController()
     fetchStreamSettings(abortControllerRef.current.signal)
     return () => {
@@ -186,10 +184,6 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
         if (isDev) console.log('[HLSPlayer] Destroying HLS instance on unmount')
         hlsRef.current.destroy()
         hlsRef.current = null
-      }
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
-        heartbeatIntervalRef.current = null
       }
       if (retryIntervalRef.current) {
         clearInterval(retryIntervalRef.current)
@@ -375,44 +369,6 @@ export default function HLSPlayer({ src, poster = '/poster.jpg' }: HLSPlayerProp
       video.load()
     }
   }, [isActive])
-
-  useEffect(() => {
-    const sendHeartbeat = async () => {
-      if (!sessionIdRef.current) return
-
-      try {
-        const response = await fetch('/api/viewers/heartbeat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId: sessionIdRef.current }),
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          setViewerCount(data.viewerCount)
-        }
-      } catch (error) {
-        if (isDev) console.log('[HLSPlayer] Heartbeat failed (non-fatal):', error)
-      }
-    }
-
-    if (isPlaying && isActive) {
-      sendHeartbeat()
-      heartbeatIntervalRef.current = setInterval(sendHeartbeat, 20000)
-    } else {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
-        heartbeatIntervalRef.current = null
-      }
-    }
-
-    return () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
-        heartbeatIntervalRef.current = null
-      }
-    }
-  }, [isPlaying, isActive])
 
   useEffect(() => {
     const video = videoRef.current
