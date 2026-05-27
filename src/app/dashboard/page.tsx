@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getUserFromCookies, getCurrentOpenEvent } from '@/lib/auth'
+import { getUserFromCookies } from '@/lib/auth'
+import * as openEvents from '@/lib/openEvents'
 import { prisma } from '@/lib/prisma'
 import { getServiceSettingsCached } from '@/lib/serviceSettings'
 import DashboardShell from './DashboardShell'
@@ -68,9 +69,9 @@ function calculateNextDate(
 }
 
 export default async function DashboardPage() {
-  const [user, openEventData, banners, serviceSettingsData, serviceSchedules] = await Promise.all([
+  const [user, activeEvent, banners, serviceSettingsData, serviceSchedules] = await Promise.all([
     getUserFromCookies(),
-    getCurrentOpenEvent(),
+    openEvents.getCurrentLive().catch(() => null),
     prisma.banner.findMany({
       where: { active: true },
       orderBy: { order: 'asc' },
@@ -90,7 +91,7 @@ export default async function DashboardPage() {
     })
   ])
 
-  const { hasActiveEvent, activeEvent } = openEventData
+  const hasActiveEvent = activeEvent !== null
 
   if (!user && !hasActiveEvent) {
     redirect('/login')

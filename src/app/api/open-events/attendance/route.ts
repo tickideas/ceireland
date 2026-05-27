@@ -1,30 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { z } from 'zod'
 import { verifyToken } from '@/lib/auth'
+import * as openEvents from '@/lib/openEvents'
+import { errorResponse } from '@/lib/errors'
+
+const bodySchema = z.object({
+  openEventId: z.string().min(1),
+  sessionId: z.string().optional().nullable(),
+  ipAddress: z.string().optional().nullable(),
+  userAgent: z.string().optional().nullable(),
+})
 
 export async function POST(request: NextRequest) {
   try {
-    const { openEventId, sessionId, ipAddress, userAgent } = await request.json()
+    const raw = (await request.json().catch(() => null)) as unknown
+    const parsed = bodySchema.safeParse(raw)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.issues[0]?.message ?? 'Invalid request' },
+        { status: 400 },
+      )
+    }
+
     const authToken = request.cookies.get('auth-token')
-
-    // Validation
-    if (!openEventId) {
-      return NextResponse.json({ error: 'Open event ID is required' }, { status: 400 })
-    }
-
-    // Find the open event
-    const openEvent = await prisma.openEvent.findUnique({
-      where: { id: openEventId }
-    })
-
-    if (!openEvent) {
-      return NextResponse.json({ error: 'Open event not found' }, { status: 404 })
-    }
-
-    const now = new Date()
     let userId: string | null = null
-
-    // Verify JWT if token exists
     if (authToken) {
       const payload = verifyToken(authToken.value)
       if (payload) {
@@ -32,66 +31,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if the event is currently active
-    if (openEvent.startDate > now || openEvent.endDate < now) {
-      // Only allow out-of-window check-ins for verified authenticated users
-      if (!userId) {
-        return NextResponse.json({ error: 'Event is not currently active' }, { status: 400 })
-      }
-    }
+    const result = await openEvents.checkIn({
+      openEventId: parsed.data.openEventId,
+      sessionId: parsed.data.sessionId,
+      ipAddress: parsed.data.ipAddress,
+      userAgent: parsed.data.userAgent,
+      userId,
+      isAuthenticated: userId !== null,
+    })
 
-    // Check if attendance record already exists
-    let existingAttendance = null
-
-    if (userId) {
-      existingAttendance = await prisma.openEventAttendance.findFirst({
-        where: {
-          openEventId,
-          userId
-        }
-      })
-    } else if (sessionId) {
-      existingAttendance = await prisma.openEventAttendance.findFirst({
-        where: {
-          openEventId,
-          sessionId
-        }
-      })
-    }
-
-    if (!existingAttendance) {
-      // Create new attendance record
-      const attendance = await prisma.openEventAttendance.create({
-        data: {
-          openEventId,
-          sessionId: sessionId || null,
-          userId: userId || null,
-          ipAddress: ipAddress || null,
-          userAgent: userAgent || null
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              email: true
-            }
-          }
-        }
-      })
-
-      return NextResponse.json({ 
-        message: 'Attendance recorded successfully',
-        attendance
-      })
-    } else {
-      return NextResponse.json({ 
-        message: 'Attendance already recorded',
-        attendance: existingAttendance
-      })
-    }
+    return NextResponse.json({
+      message: result.alreadyRecorded ? 'Attendance already recorded' : 'Attendance recorded successfully',
+      attendance: result.attendance,
+    })
   } catch (error) {
-    console.error('Record open event attendance error:', error)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return errorResponse(error, 'OpenEventAttendance')
   }
 }
