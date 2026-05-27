@@ -67,7 +67,7 @@ export default function HLSPlayerView({
   handleVolumeInput,
 }: HLSPlayerViewProps) {
   return (
-    <div 
+    <div
       ref={containerRef}
       className="relative w-full h-full bg-black group"
       onMouseMove={handleMouseMove}
@@ -197,12 +197,12 @@ export default function HLSPlayerView({
 
       {/* Custom Controls Overlay */}
       {isActive && !streamOffline && !error && !loading && (
-        <div 
+        <div
           className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent transition-opacity duration-300 ${showControls || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         >
           {/* Progress Bar - only show for non-live/seekable content */}
           {duration > 0 && isFinite(duration) && (
-            <div 
+            <div
               ref={progressRef}
               className="relative h-1 hover:h-1.5 mx-4 mb-2 cursor-pointer group/progress transition-all"
               onClick={handleProgressClick}
@@ -210,12 +210,12 @@ export default function HLSPlayerView({
               {/* Background */}
               <div className="absolute inset-0 bg-white/30 rounded-full" />
               {/* Buffered */}
-              <div 
+              <div
                 className="absolute inset-y-0 left-0 bg-white/50 rounded-full"
                 style={{ width: `${(buffered / duration) * 100}%` }}
               />
               {/* Progress */}
-              <div 
+              <div
                 className="absolute inset-y-0 left-0 bg-red-500 rounded-full"
                 style={{ width: `${(currentTime / duration) * 100}%` }}
               >
