@@ -1,73 +1,45 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { NotFoundError } from '@/lib/errors'
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+const idParams = z.object({ id: z.string().min(1, 'Prayer request ID is required') })
 
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Prayer request ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
+const updateSchema = z.object({
+  isRead: z.boolean().optional(),
+  isArchived: z.boolean().optional(),
+  notes: z.string().nullable().optional(),
+})
 
-    const body = await request.json()
-
-    const updated = await prisma.prayerRequest.update({
-      where: { id },
-      data: {
-        isRead: body.isRead,
-        isArchived: body.isArchived,
-        notes: body.notes
+export const PATCH = adminRoute(
+  { params: idParams, body: updateSchema },
+  async ({ params: { id }, body }) => {
+    try {
+      return await prisma.prayerRequest.update({
+        where: { id },
+        data: {
+          isRead: body.isRead,
+          isArchived: body.isArchived,
+          notes: body.notes
+        }
+      })
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2025') {
+        throw new NotFoundError('Prayer request not found')
       }
-    })
-
-    return NextResponse.json(updated)
-  } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    if ((err as { code?: string }).code === 'P2025') {
-      const notFound = new NotFoundError('Prayer request not found')
-      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+      throw error
     }
-    return errorResponse(error, 'AdminPrayerRequestUpdate')
   }
-}
+)
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = adminRoute({ params: idParams }, async ({ params: { id } }) => {
   try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Prayer request ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    await prisma.prayerRequest.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({ success: true })
+    await prisma.prayerRequest.delete({ where: { id } })
+    return { success: true }
   } catch (error) {
-    const err = error instanceof Error ? error : new Error('Unknown error')
-    if ((err as { code?: string }).code === 'P2025') {
-      const notFound = new NotFoundError('Prayer request not found')
-      return NextResponse.json(errorToResponse(notFound), { status: notFound.statusCode })
+    if ((error as { code?: string }).code === 'P2025') {
+      throw new NotFoundError('Prayer request not found')
     }
-    return errorResponse(error, 'AdminPrayerRequestDelete')
+    throw error
   }
-}
+})

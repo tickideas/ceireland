@@ -1,40 +1,32 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { adminRoute } from '@/lib/adminRoute'
 import { sendTestEmail } from '@/lib/email'
-import { testEmailSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
-export async function POST(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+// Legacy endpoint: accepts either `recipientEmail` or `email`.
+const bodySchema = z
+  .object({
+    recipientEmail: z.string().email().max(255).toLowerCase().trim().optional(),
+    email: z.string().email().max(255).toLowerCase().trim().optional(),
+  })
+  .refine((v) => !!(v.recipientEmail || v.email), {
+    message: 'Recipient email is required',
+    path: ['recipientEmail'],
+  })
 
-    const body = await request.json()
-    const normalizedBody = {
-      recipientEmail: body?.recipientEmail ?? body?.email,
-    }
+export const POST = adminRoute({ body: bodySchema }, async ({ body }) => {
+  const recipient = (body.recipientEmail || body.email) as string
 
-    const validation = safeValidate(testEmailSchema, normalizedBody)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const result = await sendTestEmail(validation.data.recipientEmail)
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error || 'Failed to send test email' },
-        { status: 400 }
-      )
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: `Test email sent successfully to ${validation.data.recipientEmail}`,
-    })
-  } catch (error) {
-    return errorResponse(error, 'LegacyTestEmail')
+  const result = await sendTestEmail(recipient)
+  if (!result.success) {
+    return NextResponse.json(
+      { success: false, error: result.error || 'Failed to send test email' },
+      { status: 400 }
+    )
   }
-}
+
+  return {
+    success: true,
+    message: `Test email sent successfully to ${recipient}`,
+  }
+})

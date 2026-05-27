@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { attendanceQuerySchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { attendanceQuerySchema } from '@/lib/validation'
 
 function parseDateParam(value: string | null): Date {
   if (!value) return new Date()
@@ -32,88 +31,20 @@ function toCsvValue(val: unknown): string {
   return s
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+export const GET = adminRoute({ query: attendanceQuerySchema }, async ({ query }) => {
+  const date = parseDateParam(query.date ?? null)
+  const format = query.format
+  const dayStart = startOfDay(date)
+  const dayEnd = endOfDay(date)
 
-    const { searchParams } = new URL(request.url)
-    const validation = safeValidate(
-      attendanceQuerySchema,
-      Object.fromEntries(searchParams.entries())
-    )
+  const services = await prisma.service.findMany({
+    where: { date: { gte: dayStart, lte: dayEnd } },
+    select: { id: true, title: true, date: true }
+  })
 
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
+  const serviceIds = services.map((s: { id: string }) => s.id)
 
-    const date = parseDateParam(validation.data.date ?? null)
-    const format = validation.data.format
-    const dayStart = startOfDay(date)
-    const dayEnd = endOfDay(date)
-
-    const services = await prisma.service.findMany({
-      where: {
-        date: {
-          gte: dayStart,
-          lte: dayEnd
-        }
-      },
-      select: { id: true, title: true, date: true }
-    })
-
-    const serviceIds = services.map((s: { id: string }) => s.id)
-
-    if (serviceIds.length === 0) {
-      if (format === 'csv') {
-        const headers = [
-          'Service Title',
-          'Service Date',
-          'User Title',
-          'First Name',
-          'Last Name',
-          'Email',
-          'Phone',
-          'Check-in Time'
-        ]
-        const csv = headers.join(',') + '\n'
-        return new NextResponse(csv, {
-          status: 200,
-          headers: {
-            'Content-Type': 'text/csv; charset=utf-8',
-            'Content-Disposition': `attachment; filename="attendance_${dayStart.toISOString().slice(0, 10)}.csv"`
-          }
-        })
-      }
-      return NextResponse.json({ date: dayStart, records: [] })
-    }
-
-    const attendance = await prisma.attendance.findMany({
-      where: { serviceId: { in: serviceIds } },
-      include: {
-        user: { select: { title: true, name: true, lastName: true, email: true, phone: true } },
-        service: { select: { title: true, date: true } }
-      },
-      orderBy: [
-        { service: { date: 'asc' } },
-        { checkInTime: 'asc' }
-      ]
-    })
-
-    const records = attendance.map((a: typeof attendance[number]) => ({
-      serviceTitle: a.service.title,
-      serviceDate: a.service.date,
-      userTitle: a.user.title || '',
-      firstName: a.user.name,
-      lastName: a.user.lastName,
-      email: a.user.email,
-      phone: a.user.phone || '',
-      checkInTime: a.checkInTime
-    }))
-
+  if (serviceIds.length === 0) {
     if (format === 'csv') {
       const headers = [
         'Service Title',
@@ -125,17 +56,7 @@ export async function GET(request: NextRequest) {
         'Phone',
         'Check-in Time'
       ]
-      const rows = records.map((r: typeof records[number]) => [
-        toCsvValue(r.serviceTitle),
-        toCsvValue(new Date(r.serviceDate).toISOString()),
-        toCsvValue(r.userTitle),
-        toCsvValue(r.firstName),
-        toCsvValue(r.lastName),
-        toCsvValue(r.email),
-        toCsvValue(r.phone),
-        toCsvValue(new Date(r.checkInTime).toISOString())
-      ].join(','))
-      const csv = [headers.join(','), ...rows].join('\n') + '\n'
+      const csv = headers.join(',') + '\n'
       return new NextResponse(csv, {
         status: 200,
         headers: {
@@ -144,9 +65,62 @@ export async function GET(request: NextRequest) {
         }
       })
     }
-
-    return NextResponse.json({ date: dayStart, records })
-  } catch (error) {
-    return errorResponse(error, 'AdminAttendance')
+    return { date: dayStart, records: [] }
   }
-}
+
+  const attendance = await prisma.attendance.findMany({
+    where: { serviceId: { in: serviceIds } },
+    include: {
+      user: { select: { title: true, name: true, lastName: true, email: true, phone: true } },
+      service: { select: { title: true, date: true } }
+    },
+    orderBy: [
+      { service: { date: 'asc' } },
+      { checkInTime: 'asc' }
+    ]
+  })
+
+  const records = attendance.map((a: typeof attendance[number]) => ({
+    serviceTitle: a.service.title,
+    serviceDate: a.service.date,
+    userTitle: a.user.title || '',
+    firstName: a.user.name,
+    lastName: a.user.lastName,
+    email: a.user.email,
+    phone: a.user.phone || '',
+    checkInTime: a.checkInTime
+  }))
+
+  if (format === 'csv') {
+    const headers = [
+      'Service Title',
+      'Service Date',
+      'User Title',
+      'First Name',
+      'Last Name',
+      'Email',
+      'Phone',
+      'Check-in Time'
+    ]
+    const rows = records.map((r: typeof records[number]) => [
+      toCsvValue(r.serviceTitle),
+      toCsvValue(new Date(r.serviceDate).toISOString()),
+      toCsvValue(r.userTitle),
+      toCsvValue(r.firstName),
+      toCsvValue(r.lastName),
+      toCsvValue(r.email),
+      toCsvValue(r.phone),
+      toCsvValue(new Date(r.checkInTime).toISOString())
+    ].join(','))
+    const csv = [headers.join(','), ...rows].join('\n') + '\n'
+    return new NextResponse(csv, {
+      status: 200,
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="attendance_${dayStart.toISOString().slice(0, 10)}.csv"`
+      }
+    })
+  }
+
+  return { date: dayStart, records }
+})

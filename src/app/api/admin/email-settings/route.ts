@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { emailSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
+import { adminRoute } from '@/lib/adminRoute'
+import { emailSettingsSchema } from '@/lib/validation'
 import { invalidateEmailSettingsCache } from '@/lib/email'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 import type { EmailSettingsResponse } from '@/types'
 
 /**
@@ -18,13 +16,7 @@ function maskApiKey(apiKey: string | null): string | null {
  * GET /api/admin/email-settings
  * Returns email settings (with masked API key)
  */
-export async function GET(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
+export const GET = adminRoute({}, async () => {
     // Get or create settings (singleton pattern)
     let settings = await prisma.emailSettings.findFirst()
 
@@ -57,39 +49,22 @@ export async function GET(request: NextRequest) {
     }
 
     // Include env fallback indicators
-    return NextResponse.json({
+    return {
       ...response,
       envFallbacks: {
         apiKey: hasEnvApiKey && !settings.providerApiKey,
         baseUrl: hasEnvBaseUrl && !settings.providerBaseUrl,
         fromEmail: hasEnvFromEmail && !settings.fromEmail,
       }
-    })
-  } catch (error) {
-    return errorResponse(error, 'GetEmailSettings')
-  }
-}
+    }
+})
 
 /**
  * PUT /api/admin/email-settings
  * Update email settings
  */
-export async function PUT(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
-    const body = await request.json()
-
-    const validation = safeValidate(emailSettingsSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const { emailVerificationEnabled, providerApiKey, providerBaseUrl, fromEmail, fromName } = validation.data
+export const PUT = adminRoute({ body: emailSettingsSchema }, async ({ body }) => {
+    const { emailVerificationEnabled, providerApiKey, providerBaseUrl, fromEmail, fromName } = body
 
     // Get existing settings or create
     let existingSettings = await prisma.emailSettings.findFirst()
@@ -164,8 +139,5 @@ export async function PUT(request: NextRequest) {
       ),
     }
 
-    return NextResponse.json(response)
-  } catch (error) {
-    return errorResponse(error, 'UpdateEmailSettings')
-  }
-}
+    return response
+})

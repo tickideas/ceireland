@@ -1,33 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { streamEventUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { NotFoundError } from '@/lib/errors'
+import { streamEventUpdateSchema } from '@/lib/validation'
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+const idParams = z.object({ id: z.string().min(1, 'Event ID is required') })
 
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Event ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const body = await request.json()
-    const validation = safeValidate(streamEventUpdateSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const { title, startDateTime, endDateTime, isActive } = validation.data
+export const PUT = adminRoute(
+  { params: idParams, body: streamEventUpdateSchema },
+  async ({ params: { id }, body }) => {
+    const { title, startDateTime, endDateTime, isActive } = body
     const updateData: Record<string, unknown> = {}
 
     if (title !== undefined) updateData.title = title
@@ -35,39 +17,25 @@ export async function PUT(
     if (startDateTime !== undefined) updateData.startDateTime = new Date(startDateTime)
     if (endDateTime !== undefined) updateData.endDateTime = new Date(endDateTime)
 
-    const event = await prisma.streamEvent.update({
-      where: { id },
-      data: updateData
-    })
-
-    return NextResponse.json(event)
-  } catch (error) {
-    return errorResponse(error, 'AdminStreamEventUpdate')
+    try {
+      return await prisma.streamEvent.update({ where: { id }, data: updateData })
+    } catch (error) {
+      if ((error as { code?: string }).code === 'P2025') {
+        throw new NotFoundError('Event not found')
+      }
+      throw error
+    }
   }
-}
+)
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export const DELETE = adminRoute({ params: idParams }, async ({ params: { id } }) => {
   try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Event ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    await prisma.streamEvent.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({ message: 'Event deleted successfully' })
+    await prisma.streamEvent.delete({ where: { id } })
+    return { message: 'Event deleted successfully' }
   } catch (error) {
-    return errorResponse(error, 'AdminStreamEventDelete')
+    if ((error as { code?: string }).code === 'P2025') {
+      throw new NotFoundError('Event not found')
+    }
+    throw error
   }
-}
+})

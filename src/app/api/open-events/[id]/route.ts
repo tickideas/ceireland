@@ -1,100 +1,72 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { ValidationError, NotFoundError } from '@/lib/errors'
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-    const { id } = await params
+const idParams = z.object({ id: z.string().min(1) })
 
-    const openEvent = await prisma.openEvent.findUnique({
-      where: { id },
-      include: {
-        attendance: {
-          select: {
-            id: true,
-            checkInTime: true,
-            ipAddress: true,
-            userAgent: true,
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true
-              }
-            }
-          },
-          orderBy: { checkInTime: 'desc' }
-        }
+export const GET = adminRoute({ params: idParams }, async ({ params: { id } }) => {
+  const openEvent = await prisma.openEvent.findUnique({
+    where: { id },
+    include: {
+      attendance: {
+        select: {
+          id: true,
+          checkInTime: true,
+          ipAddress: true,
+          userAgent: true,
+          user: { select: { id: true, name: true, email: true } }
+        },
+        orderBy: { checkInTime: 'desc' }
       }
-    })
-
-    if (!openEvent) {
-      const err = new NotFoundError('Open event not found')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
+  })
 
-    return NextResponse.json({ openEvent })
-  } catch (error) {
-    return errorResponse(error, 'OpenEventGet')
+  if (!openEvent) {
+    throw new NotFoundError('Open event not found')
   }
-}
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-    const { id } = await params
-    const { title, description, startDate, endDate, isActive, allowPublic } = await request.json()
+  return { openEvent }
+})
+
+const updateBody = z.object({
+  title: z.string().optional(),
+  description: z.string().nullable().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  isActive: z.boolean().optional(),
+  allowPublic: z.boolean().optional(),
+})
+
+export const PUT = adminRoute(
+  { params: idParams, body: updateBody },
+  async ({ params: { id }, body }) => {
+    const { title, description, startDate, endDate, isActive, allowPublic } = body
 
     const existingEvent = await prisma.openEvent.findUnique({ where: { id } })
     if (!existingEvent) {
-      const err = new NotFoundError('Open event not found')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      throw new NotFoundError('Open event not found')
     }
 
     let start = existingEvent.startDate
     let end = existingEvent.endDate
 
-    if (startDate) {
-      start = new Date(startDate)
-    }
-    if (endDate) {
-      end = new Date(endDate)
-    }
+    if (startDate) start = new Date(startDate)
+    if (endDate) end = new Date(endDate)
 
     if (start >= end) {
-      const err = new ValidationError('End date must be after start date')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      throw new ValidationError('End date must be after start date')
     }
 
     const overlappingEvents = await prisma.openEvent.findFirst({
       where: {
         id: { not: id },
-        OR: [
-          {
-            startDate: { lte: end },
-            endDate: { gte: start }
-          }
-        ]
+        OR: [{ startDate: { lte: end }, endDate: { gte: start } }]
       }
     })
 
     if (overlappingEvents) {
-      const err = new ValidationError('Event overlaps with existing open event')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      throw new ValidationError('Event overlaps with existing open event')
     }
 
     const updatedEvent = await prisma.openEvent.update({
@@ -120,44 +92,18 @@ export async function PUT(
       }
     })
 
-    return NextResponse.json({
-      message: 'Open event updated successfully',
-      openEvent: updatedEvent
-    })
-  } catch (error) {
-    return errorResponse(error, 'OpenEventUpdate')
+    return { message: 'Open event updated successfully', openEvent: updatedEvent }
   }
-}
+)
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-    const { id } = await params
-
-    const existingEvent = await prisma.openEvent.findUnique({ where: { id } })
-    if (!existingEvent) {
-      const err = new NotFoundError('Open event not found')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    await prisma.openEventAttendance.deleteMany({
-      where: { openEventId: id }
-    })
-
-    await prisma.openEvent.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({
-      message: 'Open event deleted successfully'
-    })
-  } catch (error) {
-    return errorResponse(error, 'OpenEventDelete')
+export const DELETE = adminRoute({ params: idParams }, async ({ params: { id } }) => {
+  const existingEvent = await prisma.openEvent.findUnique({ where: { id } })
+  if (!existingEvent) {
+    throw new NotFoundError('Open event not found')
   }
-}
+
+  await prisma.openEventAttendance.deleteMany({ where: { openEventId: id } })
+  await prisma.openEvent.delete({ where: { id } })
+
+  return { message: 'Open event deleted successfully' }
+})
