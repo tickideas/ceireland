@@ -1,35 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { streamScheduleUpdateSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { streamScheduleUpdateSchema } from '@/lib/validation'
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+const idParams = z.object({ id: z.string().min(1, 'Schedule ID is required') })
 
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Schedule ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const body = await request.json()
-    const validation = safeValidate(streamScheduleUpdateSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const { dayOfWeek, startTime, endTime, label, isActive } = validation.data
-
-    const schedule = await prisma.streamSchedule.update({
+export const PUT = adminRoute(
+  { params: idParams, body: streamScheduleUpdateSchema },
+  async ({ params: { id }, body }) => {
+    const { dayOfWeek, startTime, endTime, label, isActive } = body
+    return prisma.streamSchedule.update({
       where: { id },
       data: {
         ...(dayOfWeek !== undefined && { dayOfWeek }),
@@ -39,35 +19,10 @@ export async function PUT(
         ...(isActive !== undefined && { isActive })
       }
     })
-
-    return NextResponse.json(schedule)
-  } catch (error) {
-    return errorResponse(error, 'AdminStreamScheduleUpdate')
   }
-}
+)
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Schedule ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    await prisma.streamSchedule.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({ message: 'Schedule deleted successfully' })
-  } catch (error) {
-    return errorResponse(error, 'AdminStreamScheduleDelete')
-  }
-}
+export const DELETE = adminRoute({ params: idParams }, async ({ params: { id } }) => {
+  await prisma.streamSchedule.delete({ where: { id } })
+  return { message: 'Schedule deleted successfully' }
+})

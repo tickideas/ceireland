@@ -1,41 +1,23 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { userRoleSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, NotFoundError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { userRoleSchema } from '@/lib/validation'
+import { ValidationError, NotFoundError } from '@/lib/errors'
 
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+const idParams = z.object({ id: z.string().min(1, 'User ID is required') })
 
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('User ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const body = await request.json()
-    const validation = safeValidate(userRoleSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const { role } = validation.data
+export const PATCH = adminRoute(
+  { params: idParams, body: userRoleSchema },
+  async ({ params: { id }, body: { role } }) => {
     const target = await prisma.user.findUnique({ where: { id } })
     if (!target) {
-      const err = new NotFoundError('Member not found')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      throw new NotFoundError('Member not found')
     }
 
     if (target.role === 'ADMIN' && role === 'USER') {
       const otherAdmins = await prisma.user.count({ where: { role: 'ADMIN', NOT: { id } } })
       if (otherAdmins === 0) {
-        const err = new ValidationError('Cannot demote the last admin')
-        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+        throw new ValidationError('Cannot demote the last admin')
       }
     }
 
@@ -55,8 +37,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     })
 
-    return NextResponse.json({ message: 'Role updated', user })
-  } catch (error) {
-    return errorResponse(error, 'AdminUserRoleUpdate')
+    return { message: 'Role updated', user }
   }
-}
+)

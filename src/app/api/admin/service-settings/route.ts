@@ -1,9 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { revalidateTag } from 'next/cache'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { serviceSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { serviceSettingsSchema } from '@/lib/validation'
 import type { TwitterCardType } from '@/types'
 
 const DEFAULT_SETTINGS = {
@@ -27,15 +25,9 @@ const DEFAULT_SETTINGS = {
   twitterCardType: 'summary_large_image' as TwitterCardType,
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
+export const GET = adminRoute({}, async () => {
     const settings = await prisma.serviceSettings.findFirst()
-    return NextResponse.json({
+    return {
       appName: settings?.appName ?? DEFAULT_SETTINGS.appName,
       headerTitle: settings?.headerTitle ?? DEFAULT_SETTINGS.headerTitle,
       sundayLabel: settings?.sundayLabel ?? DEFAULT_SETTINGS.sundayLabel,
@@ -54,27 +46,10 @@ export async function GET(request: NextRequest) {
       seoImage: settings?.seoImage ?? DEFAULT_SETTINGS.seoImage,
       seoSiteName: settings?.seoSiteName ?? DEFAULT_SETTINGS.seoSiteName,
       twitterCardType: settings?.twitterCardType ?? DEFAULT_SETTINGS.twitterCardType,
-    })
-  } catch (error) {
-    return errorResponse(error, 'AdminServiceSettingsGet')
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
     }
+})
 
-    const body = await request.json()
-    const validation = safeValidate(serviceSettingsSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const validatedData = validation.data
+export const PUT = adminRoute({ body: serviceSettingsSchema }, async ({ body: validatedData }) => {
     const updateData: Record<string, string | null> = {}
 
     if (validatedData.appName !== undefined) updateData.appName = validatedData.appName
@@ -127,7 +102,7 @@ export async function PUT(request: NextRequest) {
 
     revalidateTag('service-settings', 'max')
 
-    return NextResponse.json({
+    return {
       message: 'Service settings saved',
       appName: saved.appName,
       headerTitle: saved.headerTitle,
@@ -147,8 +122,5 @@ export async function PUT(request: NextRequest) {
       seoImage: saved.seoImage ?? '',
       seoSiteName: saved.seoSiteName ?? '',
       twitterCardType: saved.twitterCardType ?? 'summary_large_image',
-    })
-  } catch (error) {
-    return errorResponse(error, 'AdminServiceSettingsUpdate')
-  }
-}
+    }
+})

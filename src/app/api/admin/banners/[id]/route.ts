@@ -1,68 +1,19 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { updateBannerSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { updateBannerSchema } from '@/lib/validation'
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+const idParams = z.object({ id: z.string().min(1, 'Banner ID is required') })
 
-    const body = await request.json()
-    const validation = safeValidate(updateBannerSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Banner ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const banner = await prisma.banner.update({
-      where: { id },
-      data: validation.data
-    })
-
-    return NextResponse.json({
-      message: 'Banner updated successfully',
-      banner
-    })
-  } catch (error) {
-    return errorResponse(error, 'AdminBannerUpdate')
+export const PATCH = adminRoute(
+  { params: idParams, body: updateBannerSchema },
+  async ({ params: { id }, body }) => {
+    const banner = await prisma.banner.update({ where: { id }, data: body })
+    return { message: 'Banner updated successfully', banner }
   }
-}
+)
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
-    const { id } = await params
-    if (!id) {
-      const err = new ValidationError('Banner ID is required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    await prisma.banner.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({ message: 'Banner deleted successfully' })
-  } catch (error) {
-    return errorResponse(error, 'AdminBannerDelete')
-  }
-}
+export const DELETE = adminRoute({ params: idParams }, async ({ params: { id } }) => {
+  await prisma.banner.delete({ where: { id } })
+  return { message: 'Banner deleted successfully' }
+})

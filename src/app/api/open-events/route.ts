@@ -1,113 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { ValidationError } from '@/lib/errors'
 
-export async function GET(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
+const listQuery = z.object({
+  active: z.string().optional(),
+})
+
+export const GET = adminRoute({ query: listQuery }, async ({ query }) => {
+  let where = {}
+
+  if (query.active === 'true') {
+    const now = new Date()
+    where = {
+      isActive: true,
+      allowPublic: true,
+      startDate: { lte: now },
+      endDate: { gte: now }
     }
-
-    const { searchParams } = request.nextUrl
-    const isActive = searchParams.get('active')
-
-    let where = {}
-
-    if (isActive === 'true') {
-      const now = new Date()
-      where = {
-        isActive: true,
-        allowPublic: true,
-        startDate: { lte: now },
-        endDate: { gte: now }
-      }
-    }
-
-    const openEvents = await prisma.openEvent.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startDate: true,
-        endDate: true,
-        isActive: true,
-        allowPublic: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    })
-
-    return NextResponse.json({ openEvents })
-  } catch (error) {
-    return errorResponse(error, 'OpenEventsList')
   }
-}
 
-export async function POST(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
+  const openEvents = await prisma.openEvent.findMany({
+    where,
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startDate: true,
+      endDate: true,
+      isActive: true,
+      allowPublic: true,
+      createdAt: true,
+      updatedAt: true
     }
+  })
 
-    const { title, description, startDate, endDate, isActive, allowPublic } = await request.json()
+  return { openEvents }
+})
 
-    if (!title || !startDate || !endDate) {
-      const err = new ValidationError('Title, start date, and end date are required')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
+const createBody = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional().nullable(),
+  startDate: z.string().min(1, 'Start date is required'),
+  endDate: z.string().min(1, 'End date is required'),
+  isActive: z.boolean().optional(),
+  allowPublic: z.boolean().optional(),
+})
 
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+export const POST = adminRoute({ body: createBody }, async ({ body }) => {
+  const { title, description, startDate, endDate, isActive, allowPublic } = body
 
-    if (start >= end) {
-      const err = new ValidationError('End date must be after start date')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
+  const start = new Date(startDate)
+  const end = new Date(endDate)
 
-    const overlappingEvents = await prisma.openEvent.findFirst({
-      where: {
-        startDate: { lte: end },
-        endDate: { gte: start }
-      }
-    })
-
-    if (overlappingEvents) {
-      const err = new ValidationError('Event overlaps with existing open event')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const openEvent = await prisma.openEvent.create({
-      data: {
-        title,
-        description,
-        startDate: start,
-        endDate: end,
-        isActive: isActive !== undefined ? isActive : true,
-        allowPublic: allowPublic !== undefined ? allowPublic : true
-      },
-      select: {
-        id: true,
-        title: true,
-        description: true,
-        startDate: true,
-        endDate: true,
-        isActive: true,
-        allowPublic: true,
-        createdAt: true,
-        updatedAt: true
-      }
-    })
-
-    return NextResponse.json({
-      message: 'Open event created successfully',
-      openEvent
-    })
-  } catch (error) {
-    return errorResponse(error, 'OpenEventCreate')
+  if (start >= end) {
+    throw new ValidationError('End date must be after start date')
   }
-}
+
+  const overlappingEvents = await prisma.openEvent.findFirst({
+    where: {
+      startDate: { lte: end },
+      endDate: { gte: start }
+    }
+  })
+
+  if (overlappingEvents) {
+    throw new ValidationError('Event overlaps with existing open event')
+  }
+
+  const openEvent = await prisma.openEvent.create({
+    data: {
+      title,
+      description,
+      startDate: start,
+      endDate: end,
+      isActive: isActive !== undefined ? isActive : true,
+      allowPublic: allowPublic !== undefined ? allowPublic : true
+    },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      startDate: true,
+      endDate: true,
+      isActive: true,
+      allowPublic: true,
+      createdAt: true,
+      updatedAt: true
+    }
+  })
+
+  return { message: 'Open event created successfully', openEvent }
+})

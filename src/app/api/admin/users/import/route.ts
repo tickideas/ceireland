@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { bulkUserImportSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse, logError } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { bulkUserImportSchema } from '@/lib/validation'
+import { logError } from '@/lib/errors'
 
 interface ResultBase { email: string; row: number }
 type CreatedResult = ResultBase & { status: 'created'; id: string }
@@ -10,21 +9,8 @@ type DuplicateResult = ResultBase & { status: 'duplicate'; id: string }
 type ErrorResult = ResultBase & { status: 'error'; message: string }
 type RowResult = CreatedResult | DuplicateResult | ErrorResult
 
-export async function POST(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
-
-    const body = await request.json().catch(() => null)
-    const validation = safeValidate(bulkUserImportSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const users = validation.data.users
+export const POST = adminRoute({ body: bulkUserImportSchema }, async ({ body }) => {
+    const users = body.users
     const results: RowResult[] = []
     let created = 0
     let duplicates = 0
@@ -144,11 +130,8 @@ export async function POST(request: NextRequest) {
 
     results.sort((a, b) => a.row - b.row)
 
-    return NextResponse.json({
+    return {
       summary: { total: users.length, created, duplicates, errors },
       results
-    })
-  } catch (error) {
-    return errorResponse(error, 'AdminUserImport')
-  }
-}
+    }
+})

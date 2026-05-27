@@ -1,83 +1,56 @@
-import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { streamSettingsSchema, safeValidate, formatZodErrors } from '@/lib/validation'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { streamSettingsSchema } from '@/lib/validation'
 
-export async function GET(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+export const GET = adminRoute({}, async () => {
+  const [streamSettings, schedules, events] = await Promise.all([
+    prisma.streamSettings.findFirst(),
+    prisma.streamSchedule.findMany({ orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] }),
+    prisma.streamEvent.findMany({ orderBy: { startDateTime: 'asc' } })
+  ])
 
-    const [streamSettings, schedules, events] = await Promise.all([
-      prisma.streamSettings.findFirst(),
-      prisma.streamSchedule.findMany({ orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }] }),
-      prisma.streamEvent.findMany({ orderBy: { startDateTime: 'asc' } })
-    ])
-
-    return NextResponse.json({
-      streamUrl: streamSettings?.streamUrl || '',
-      posterUrl: streamSettings?.posterUrl || '',
-      isActive: streamSettings?.isActive || false,
-      scheduledEndTime: streamSettings?.scheduledEndTime || null,
-      schedules,
-      events
-    })
-  } catch (error) {
-    return errorResponse(error, 'AdminStreamGet')
+  return {
+    streamUrl: streamSettings?.streamUrl || '',
+    posterUrl: streamSettings?.posterUrl || '',
+    isActive: streamSettings?.isActive || false,
+    scheduledEndTime: streamSettings?.scheduledEndTime || null,
+    schedules,
+    events
   }
-}
+})
 
-export async function PUT(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+export const PUT = adminRoute({ body: streamSettingsSchema }, async ({ body }) => {
+  const { streamUrl, posterUrl, isActive, scheduledEndTime } = body
+  const endTime = scheduledEndTime ? new Date(scheduledEndTime) : null
 
-    const body = await request.json()
-    const validation = safeValidate(streamSettingsSchema, body)
-    if (!validation.success) {
-      const err = new ValidationError(formatZodErrors(validation.errors).join(', '))
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
+  let streamSettings = await prisma.streamSettings.findFirst()
 
-    const { streamUrl, posterUrl, isActive, scheduledEndTime } = validation.data
-    const endTime = scheduledEndTime ? new Date(scheduledEndTime) : null
-
-    let streamSettings = await prisma.streamSettings.findFirst()
-
-    if (streamSettings) {
-      streamSettings = await prisma.streamSettings.update({
-        where: { id: streamSettings.id },
-        data: {
-          streamUrl: streamUrl || null,
-          posterUrl: posterUrl || null,
-          isActive: isActive ?? false,
-          scheduledEndTime: endTime
-        }
-      })
-    } else {
-      streamSettings = await prisma.streamSettings.create({
-        data: {
-          streamUrl: streamUrl || null,
-          posterUrl: posterUrl || null,
-          isActive: isActive ?? false,
-          scheduledEndTime: endTime
-        }
-      })
-    }
-
-    return NextResponse.json({
-      message: 'Stream settings updated successfully',
-      streamUrl: streamSettings.streamUrl,
-      posterUrl: streamSettings.posterUrl,
-      isActive: streamSettings.isActive,
-      scheduledEndTime: streamSettings.scheduledEndTime
+  if (streamSettings) {
+    streamSettings = await prisma.streamSettings.update({
+      where: { id: streamSettings.id },
+      data: {
+        streamUrl: streamUrl || null,
+        posterUrl: posterUrl || null,
+        isActive: isActive ?? false,
+        scheduledEndTime: endTime
+      }
     })
-  } catch (error) {
-    return errorResponse(error, 'AdminStreamUpdate')
+  } else {
+    streamSettings = await prisma.streamSettings.create({
+      data: {
+        streamUrl: streamUrl || null,
+        posterUrl: posterUrl || null,
+        isActive: isActive ?? false,
+        scheduledEndTime: endTime
+      }
+    })
   }
-}
+
+  return {
+    message: 'Stream settings updated successfully',
+    streamUrl: streamSettings.streamUrl,
+    posterUrl: streamSettings.posterUrl,
+    isActive: streamSettings.isActive,
+    scheduledEndTime: streamSettings.scheduledEndTime
+  }
+})

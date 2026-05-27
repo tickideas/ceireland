@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
+import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { verifyAdminFromRequest } from '@/lib/adminAuth'
-import { ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
+import { adminRoute } from '@/lib/adminRoute'
+import { ValidationError } from '@/lib/errors'
 
 type Granularity = 'day' | 'month' | 'year'
 
@@ -138,57 +139,40 @@ function alignEnd(granularity: Granularity, date: Date): Date {
   }
 }
 
-export async function GET(request: NextRequest) {
-  try {
-    const adminResult = await verifyAdminFromRequest(request)
-    if (!adminResult.success) {
-      return NextResponse.json({ error: adminResult.error }, { status: adminResult.status })
-    }
+const querySchema = z.object({
+  granularity: z.enum(['day', 'month', 'year']).optional(),
+  format: z.enum(['json', 'csv']).optional(),
+  from: z.string().optional(),
+  to: z.string().optional(),
+})
 
-    const { searchParams } = new URL(request.url)
-    const granularityParam = searchParams.get('granularity')
-    if (granularityParam && !['day', 'month', 'year'].includes(granularityParam)) {
-      const err = new ValidationError('Invalid granularity')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-    const gran = (granularityParam as Granularity) || 'month'
-
-    const format = searchParams.get('format') || 'json'
-    if (format !== 'json' && format !== 'csv') {
-      const err = new ValidationError('Invalid format')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
-    }
-
-    const fromParam = searchParams.get('from')
-    const toParam = searchParams.get('to')
+export const GET = adminRoute({ query: querySchema }, async ({ query }) => {
+    const gran: Granularity = query.granularity ?? 'month'
+    const format = query.format ?? 'json'
 
     let { start, end } = defaultRange(gran)
-    if (fromParam) {
-      const parsedFrom = parseLocalDate(fromParam)
+    if (query.from) {
+      const parsedFrom = parseLocalDate(query.from)
       if (!parsedFrom) {
-        const err = new ValidationError('Invalid from date')
-        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+        throw new ValidationError('Invalid from date')
       }
       start = alignStart(gran, parsedFrom)
     }
-    if (toParam) {
-      const parsedTo = parseLocalDate(toParam)
+    if (query.to) {
+      const parsedTo = parseLocalDate(query.to)
       if (!parsedTo) {
-        const err = new ValidationError('Invalid to date')
-        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+        throw new ValidationError('Invalid to date')
       }
       end = alignEnd(gran, parsedTo)
     }
 
     if (start > end) {
-      const err = new ValidationError('Invalid date range')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      throw new ValidationError('Invalid date range')
     }
 
     const totalBuckets = bucketCount(gran, start, end)
     if (totalBuckets > MAX_BUCKETS[gran]) {
-      const err = new ValidationError('Date range too large')
-      return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      throw new ValidationError('Date range too large')
     }
 
     const labels = buildBuckets(gran, start, end)
@@ -280,8 +264,5 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    return NextResponse.json({ granularity: gran, start, end, labels, data })
-  } catch (error) {
-    return errorResponse(error, 'AdminAnalyticsTimeseries')
-  }
-}
+    return { granularity: gran, start, end, labels, data }
+})
