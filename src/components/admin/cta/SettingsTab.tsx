@@ -62,8 +62,19 @@ export default function SettingsTab() {
     )
   }
 
+  // Settings can be null after a 401/403 — the fetch sets `message` but never
+  // sets `settings`. Render the error banner alone so the user sees why.
   if (!settings) {
-    return null
+    return message ? (
+      <div
+        className={`p-4 rounded-lg flex items-center gap-2 ${
+          message.type === 'success' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+        }`}
+      >
+        {message.type === 'success' ? <Check size={18} /> : <X size={18} />}
+        {message.text}
+      </div>
+    ) : null
   }
 
   return (
