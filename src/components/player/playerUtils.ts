@@ -19,7 +19,11 @@ export function formatCountdown(
   if (!targetIso) return { text: '', ended: false }
 
   const target = new Date(targetIso)
-  const diff = target.getTime() - now.getTime()
+  const targetTime = target.getTime()
+
+  if (Number.isNaN(targetTime)) return { text: '', ended: false }
+
+  const diff = targetTime - now.getTime()
 
   if (diff <= 0) return { text: 'Starting now', ended: true }
 

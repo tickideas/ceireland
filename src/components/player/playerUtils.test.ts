@@ -25,6 +25,13 @@ test('formatCountdown returns blank when no target is provided', () => {
   })
 })
 
+test('formatCountdown returns blank when target is invalid', () => {
+  assert.deepEqual(formatCountdown('not-a-date', new Date('2030-01-01T00:00:00.000Z')), {
+    text: '',
+    ended: false,
+  })
+})
+
 test('formatCountdown marks elapsed targets as starting now', () => {
   assert.deepEqual(
     formatCountdown('2030-01-01T00:00:00.000Z', new Date('2030-01-01T00:00:01.000Z')),
