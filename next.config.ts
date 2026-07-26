@@ -27,7 +27,11 @@ const securityHeaders = [
         },
         {
           key: 'Content-Security-Policy',
-          value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https: wss: ws:; media-src 'self' https:; frame-ancestors 'self';",
+          // challenges.cloudflare.com is required by Turnstile: script-src for
+          // the widget loader and frame-src for the challenge iframe. Without
+          // both, the widget silently fails to render and every registration
+          // is rejected for a missing token.
+          value: "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data: https:; connect-src 'self' https: wss: ws:; media-src 'self' https:; frame-src 'self' https://challenges.cloudflare.com; frame-ancestors 'self';",
         },
       ]
     : []),

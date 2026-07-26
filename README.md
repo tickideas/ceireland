@@ -241,6 +241,20 @@ docker compose down -v
 | `SMTP_FROM` | From email address for notifications | ✅ (production) |
 | `RHAPSODY_BASE_URL` | Override devotional content base URL | Optional |
 | `RHAPSODY_LANG` | Default devotional language (e.g., `english`) | Optional |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (renders the widget) | ✅ (production) |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key (server verification) | ✅ (production) |
+| `TRUSTED_PROXY_HOPS` | Reverse-proxy hops in front of the app; used to read the real client IP for rate limiting. Default `1` (Traefik/Dokploy). Set `2` behind Cloudflare too. | Optional |
+
+### Bot protection on registration
+
+Registration is protected by Cloudflare Turnstile. Both keys must be set for it
+to take effect — if `TURNSTILE_SECRET_KEY` is absent the server skips
+verification, and if `NEXT_PUBLIC_TURNSTILE_SITE_KEY` is absent the widget is
+not rendered. Set both together; setting only the secret will reject every
+registration, and setting only the site key leaves the endpoint unprotected.
+
+Get keys from the Cloudflare dashboard under Turnstile, adding your production
+domain (and `localhost` if you want to exercise it locally).
 
 ## 📡 Key API Routes
 - `/api/auth/*` – Registration, login (magic link), logout, and session checks

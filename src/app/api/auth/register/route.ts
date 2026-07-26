@@ -9,6 +9,7 @@ import {
   isDisposableEmail
 } from '@/lib/emailVerification'
 import { isEmailVerificationEnabled } from '@/lib/email'
+import { isTurnstileConfigured, verifyTurnstileToken } from '@/lib/turnstile'
 import {
   ValidationError,
   ConflictError,
@@ -46,11 +47,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    const { title, name, lastName, email, phone, honeypot } = validation.data
+    const { title, name, lastName, email, phone, honeypot, turnstileToken } = validation.data
 
     if (honeypot && honeypot.length > 0) {
       const err = new ValidationError('Bot detected')
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+    }
+
+    // Checked before the rate limits below so a failed challenge does not burn
+    // a legitimate visitor's remaining attempts, but after the free checks
+    // above so bots never reach the outbound call.
+    if (isTurnstileConfigured()) {
+      const turnstile = await verifyTurnstileToken(turnstileToken, clientIp)
+      if (!turnstile.success) {
+        const err = new ValidationError(turnstile.error || 'Verification failed')
+        return NextResponse.json(errorToResponse(err), { status: err.statusCode })
+      }
     }
 
     // Check for disposable email addresses
