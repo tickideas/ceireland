@@ -1,9 +1,8 @@
 /**
  * Database-backed rate limiter for consistent behavior across instances.
- * Falls back to in-memory storage in test mode or when DB access is unavailable.
+ * Uses in-memory storage only in test mode or when explicitly configured.
  */
 
-import { Prisma } from '@prisma/client'
 import { prisma } from './prisma'
 
 interface RateLimitEntry {
@@ -113,80 +112,91 @@ function checkRateLimitInMemory(
   }
 }
 
-const SERIALIZABLE_RETRY_LIMIT = 3
+/** Expired rows are pruned at most this often, per process. */
+const PRUNE_MIN_INTERVAL_MS = 10 * 60 * 1000
+/** Bounded so a large backlog is drained over several passes, not one long lock. */
+const PRUNE_BATCH_SIZE = 10_000
 
-function isRetryableSerializationError(error: unknown): boolean {
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
-    return error.code === 'P2034'
+let lastPruneAt = 0
+
+/**
+ * Deletes expired records opportunistically.
+ *
+ * Nothing previously removed them, so the table grew without bound in normal
+ * operation and accumulated one row per address during the signup flood.
+ */
+async function pruneExpiredRecords(): Promise<void> {
+  const now = Date.now()
+  if (now - lastPruneAt < PRUNE_MIN_INTERVAL_MS) return
+  lastPruneAt = now
+
+  try {
+    await prisma.$executeRaw`
+      DELETE FROM "rate_limit_records"
+      WHERE "key" IN (
+        SELECT "key" FROM "rate_limit_records"
+        WHERE "resetTime" < now()
+        LIMIT ${PRUNE_BATCH_SIZE}
+      )
+    `
+  } catch (error) {
+    console.warn('[RateLimit] prune failed:', error instanceof Error ? error.message : error)
   }
-  return false
 }
 
+/**
+ * Applies the limit in a single atomic statement.
+ *
+ * This was a Serializable transaction, which aborted constantly with
+ * "could not serialize access" under concurrency - exactly when the limiter
+ * matters most, and every abort fell through to the weaker in-memory path.
+ * INSERT ... ON CONFLICT DO UPDATE is atomic by itself at the default
+ * isolation level, so concurrent callers queue on the row lock instead of
+ * cancelling one another.
+ *
+ * The counter stops climbing at maxAttempts + 1: bounded under a sustained
+ * attack, while keeping "over the limit" distinguishable from "exactly at it".
+ */
 async function checkRateLimitInDatabase(
   identifier: string,
   config: RateLimitConfig
 ): Promise<RateLimitResult> {
   const key = normalizeKey(identifier)
+  const resetTime = new Date(Date.now() + config.windowMs)
 
-  for (let attempt = 0; attempt < SERIALIZABLE_RETRY_LIMIT; attempt += 1) {
-    const now = Date.now()
-    const resetTime = new Date(now + config.windowMs)
+  const rows = await prisma.$queryRaw<Array<{ count: number; resetTime: Date }>>`
+    INSERT INTO "rate_limit_records" ("key", "count", "resetTime", "createdAt", "updatedAt")
+    VALUES (${key}, 1, ${resetTime}, now(), now())
+    ON CONFLICT ("key") DO UPDATE SET
+      "count" = CASE
+        WHEN "rate_limit_records"."resetTime" < now() THEN 1
+        WHEN "rate_limit_records"."count" <= ${config.maxAttempts} THEN "rate_limit_records"."count" + 1
+        ELSE "rate_limit_records"."count"
+      END,
+      "resetTime" = CASE
+        WHEN "rate_limit_records"."resetTime" < now() THEN ${resetTime}
+        ELSE "rate_limit_records"."resetTime"
+      END,
+      "updatedAt" = now()
+    RETURNING "count", "resetTime"
+  `
 
-    try {
-      return await prisma.$transaction(async (tx) => {
-        const existing = await tx.rateLimitRecord.findUnique({
-          where: { key },
-          select: { count: true, resetTime: true },
-        })
-
-        if (!existing || existing.resetTime.getTime() < now) {
-          await tx.rateLimitRecord.upsert({
-            where: { key },
-            create: {
-              key,
-              count: 1,
-              resetTime,
-            },
-            update: {
-              count: 1,
-              resetTime,
-            },
-          })
-
-          return {
-            success: true,
-            remaining: config.maxAttempts - 1,
-            resetTime: resetTime.getTime(),
-          }
-        }
-
-        if (existing.count >= config.maxAttempts) {
-          return buildExceededResult(existing.resetTime.getTime())
-        }
-
-        const updated = await tx.rateLimitRecord.update({
-          where: { key },
-          data: { count: { increment: 1 } },
-          select: { count: true, resetTime: true },
-        })
-
-        return {
-          success: true,
-          remaining: config.maxAttempts - updated.count,
-          resetTime: updated.resetTime.getTime(),
-        }
-      }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      })
-    } catch (error) {
-      if (isRetryableSerializationError(error) && attempt < SERIALIZABLE_RETRY_LIMIT - 1) {
-        continue
-      }
-      throw error
-    }
+  const record = rows[0]
+  if (!record) {
+    throw new Error('Rate limit upsert returned no row')
   }
 
-  throw new Error('Rate limit transaction failed after retries') // unreachable - satisfies TypeScript control flow
+  void pruneExpiredRecords()
+
+  if (record.count > config.maxAttempts) {
+    return buildExceededResult(record.resetTime.getTime())
+  }
+
+  return {
+    success: true,
+    remaining: config.maxAttempts - record.count,
+    resetTime: record.resetTime.getTime(),
+  }
 }
 
 export async function checkRateLimit(
@@ -200,8 +210,20 @@ export async function checkRateLimit(
   try {
     return await checkRateLimitInDatabase(identifier, config)
   } catch (error) {
-    console.warn('[RateLimit] Falling back to in-memory store:', error instanceof Error ? error.message : error)
-    return checkRateLimitInMemory(identifier, config)
+    // Fail closed. The previous in-memory fallback was per-process and reset on
+    // every deploy, so it quietly weakened the limit precisely when the database
+    // was struggling under an attack. Every endpoint guarded here needs the
+    // database to do its real work, so denying costs no genuine availability.
+    console.error(
+      '[RateLimit] store unavailable, denying request:',
+      error instanceof Error ? error.message : error
+    )
+    return {
+      success: false,
+      remaining: 0,
+      resetTime: Date.now() + config.windowMs,
+      error: 'Service temporarily unavailable. Please try again shortly.',
+    }
   }
 }
 
