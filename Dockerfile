@@ -52,11 +52,17 @@ COPY --from=builder /app/prisma.config.ts ./
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
-# Install prisma CLI with all transitive deps for runtime migrations
+# Install prisma CLI with all transitive deps for runtime migrations.
 # Note: effect is a transitive dep of @prisma/config and must be listed
 # explicitly because @prisma/config is already copied from the builder stage,
 # so npm does not re-resolve its sub-dependencies.
-RUN npm install --no-save --no-package-lock prisma dotenv effect
+#
+# The CLI version MUST stay pinned to the @prisma/client version in
+# package-lock.json. This install bypasses the lockfile, so leaving it
+# unpinned means each rebuild silently picks up whatever is on the registry -
+# start.sh runs `migrate deploy` with it against production on every boot, and
+# a major-version jump would stop the container from starting.
+RUN npm install --no-save --no-package-lock prisma@6.19.3 dotenv effect
 
 USER nextjs
 
