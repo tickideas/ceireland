@@ -48,6 +48,8 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+    // Rewrite barrel imports to per-module paths to cut compile/bundle work
+    optimizePackageImports: ['lucide-react', 'recharts'],
   },
 
   // Compiler optimizations
@@ -93,32 +95,6 @@ const nextConfig: NextConfig = {
       },
       // Add other remote hosts here if your banners use them
     ],
-  },
-
-  // Webpack optimizations
-  webpack: (config, { dev, isServer }) => {
-    // Optimize bundle size in production
-    if (!dev && !isServer) {
-      config.optimization = {
-        ...config.optimization,
-        splitChunks: {
-          chunks: 'all',
-          cacheGroups: {
-            vendor: {
-              test: /[\\/]node_modules[\\/]/,
-              name: 'vendors',
-              chunks: 'all',
-            },
-            common: {
-              minChunks: 2,
-              chunks: 'all',
-              enforce: true,
-            },
-          },
-        },
-      };
-    }
-    return config;
   },
 };
 

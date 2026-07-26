@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
+import { getClientIp } from '@/lib/clientIp'
 
 const MIN_SUBMIT_TIME_MS = 3000
 
@@ -13,21 +14,10 @@ const salvationSchema = z.object({
   formLoadedAt: z.number().optional()
 })
 
-function getClientIP(request: Request): string {
-  const forwardedFor = request.headers.get('x-forwarded-for')
-  if (forwardedFor) {
-    return forwardedFor.split(',')[0].trim()
-  }
-  const realIP = request.headers.get('x-real-ip')
-  if (realIP) {
-    return realIP
-  }
-  return 'unknown'
-}
 
 export async function POST(request: Request) {
   try {
-    const clientIP = getClientIP(request)
+    const clientIP = getClientIp(request)
     
     const rateLimitResult = await checkRateLimit(`salvation:${clientIP}`, RATE_LIMITS.SALVATION)
     if (!rateLimitResult.success) {

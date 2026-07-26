@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
+import { checkRateLimit, RATE_LIMITS, type RateLimitResult } from '@/lib/rateLimit'
+import { getClientIp } from '@/lib/clientIp'
 import { registerSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import {
   createVerificationToken,
@@ -16,8 +17,27 @@ import {
   errorResponse
 } from '@/lib/errors'
 
+function rateLimited(result: RateLimitResult, fallbackMessage: string) {
+  const retryAfter = Math.ceil((result.resetTime - Date.now()) / 1000)
+  const err = new RateLimitError(result.error || fallbackMessage, retryAfter)
+  return NextResponse.json(errorToResponse(err), {
+    status: err.statusCode,
+    headers: {
+      'Retry-After': String(retryAfter)
+    }
+  })
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Per-IP limit is checked before any parsing so a flood is rejected as
+    // cheaply as possible.
+    const clientIp = getClientIp(request)
+    const ipRateLimit = await checkRateLimit(`register-ip:${clientIp}`, RATE_LIMITS.REGISTER_IP)
+    if (!ipRateLimit.success) {
+      return rateLimited(ipRateLimit, 'Too many registration attempts')
+    }
+
     const body = await request.json()
 
     const validation = safeValidate(registerSchema, body)
@@ -39,17 +59,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(errorToResponse(err), { status: err.statusCode })
     }
 
-    // Check rate limit (5 attempts per hour - prevents spam registrations)
+    // Site-wide ceiling: bounds total verification emails per hour regardless
+    // of how many addresses or source IPs the caller rotates through.
+    const globalRateLimit = await checkRateLimit('register-global', RATE_LIMITS.REGISTER_GLOBAL)
+    if (!globalRateLimit.success) {
+      return rateLimited(globalRateLimit, 'Registrations are temporarily unavailable')
+    }
+
+    // Per-email limit (5 attempts per hour) stops repeated signups for one address.
     const rateLimitResult = await checkRateLimit(`register:${email}`, RATE_LIMITS.REGISTER)
     if (!rateLimitResult.success) {
-      const retryAfter = Math.ceil((rateLimitResult.resetTime - Date.now()) / 1000)
-      const err = new RateLimitError(rateLimitResult.error || 'Too many registration attempts', retryAfter)
-      return NextResponse.json(errorToResponse(err), {
-        status: err.statusCode,
-        headers: {
-          'Retry-After': String(retryAfter)
-        }
-      })
+      return rateLimited(rateLimitResult, 'Too many registration attempts')
     }
 
     const existingUser = await prisma.user.findUnique({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { signToken } from '@/lib/auth'
 import { checkRateLimit, RATE_LIMITS, resetRateLimit } from '@/lib/rateLimit'
+import { getClientIp } from '@/lib/clientIp'
 import { loginSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import { isEmailVerificationEnabled } from '@/lib/email'
 import {
@@ -14,6 +15,19 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
+    // Bounds credential stuffing from a single source; the per-email limit below
+    // cannot do this because the caller picks the email.
+    const clientIp = getClientIp(request)
+    const ipRateLimit = await checkRateLimit(`login-ip:${clientIp}`, RATE_LIMITS.LOGIN_IP)
+    if (!ipRateLimit.success) {
+      const retryAfter = Math.ceil((ipRateLimit.resetTime - Date.now()) / 1000)
+      const err = new RateLimitError(ipRateLimit.error || 'Too many login attempts', retryAfter)
+      return NextResponse.json(errorToResponse(err), {
+        status: err.statusCode,
+        headers: { 'Retry-After': String(retryAfter) }
+      })
+    }
+
     const body = await request.json()
 
     const validation = safeValidate(loginSchema, body)

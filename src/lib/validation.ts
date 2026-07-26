@@ -28,22 +28,38 @@ export const resendVerificationSchema = z.object({
     .trim(),
 })
 
+/**
+ * Personal-name fields from public registration are interpolated into outbound
+ * email, so whatever is accepted here can be delivered to a third party's
+ * inbox. Restricting to characters that genuinely occur in names blocks the
+ * URLs and emoji used to turn signup into a spam relay.
+ *
+ * Allows Unicode letters and combining marks (accented and non-Latin names),
+ * plus spaces, apostrophes, periods and hyphens. Must start with a letter.
+ */
+const NAME_PATTERN = /^\p{L}[\p{L}\p{M}\s'\u2019.-]*$/u
+
+/**
+ * True when a value is acceptable as a personal name. Exported so cleanup
+ * tooling classifies existing rows with exactly the same rule the API enforces.
+ */
+export function isNameSafe(value: string): boolean {
+  return NAME_PATTERN.test(value.trim())
+}
+
+function nameField(label: string, maxLength: number) {
+  return z
+    .string()
+    .min(1, `${label} is required`)
+    .max(maxLength, `${label} too long`)
+    .trim()
+    .regex(NAME_PATTERN, `${label} contains invalid characters`)
+}
+
 export const registerSchema = z.object({
-  title: z
-    .string()
-    .min(1, 'Title is required')
-    .max(50, 'Title too long')
-    .trim(),
-  name: z
-    .string()
-    .min(1, 'First name is required')
-    .max(100, 'First name too long')
-    .trim(),
-  lastName: z
-    .string()
-    .min(1, 'Last name is required')
-    .max(100, 'Last name too long')
-    .trim(),
+  title: nameField('Title', 50),
+  name: nameField('First name', 100),
+  lastName: nameField('Last name', 100),
   email: z
     .string()
     .min(1, 'Email is required')

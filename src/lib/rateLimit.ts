@@ -39,6 +39,21 @@ export interface RateLimitResult {
 export const RATE_LIMITS = {
   LOGIN: { maxAttempts: 10, windowMs: 15 * 60 * 1000 },
   REGISTER: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },
+
+  // Email-keyed limits alone are trivially bypassed: the attacker chooses the
+  // email, so every new address resets the counter. These IP-keyed limits are
+  // the ones that actually bound how many verification emails a single source
+  // can trigger. Ceilings are deliberately generous so shared/NAT'd church
+  // connections are not locked out.
+  LOGIN_IP: { maxAttempts: 30, windowMs: 15 * 60 * 1000 },
+  REGISTER_IP: { maxAttempts: 10, windowMs: 60 * 60 * 1000 },
+  RESEND_VERIFICATION_IP: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },
+
+  // Site-wide circuit breaker. Normal signup volume is far below this; it only
+  // trips during a flood, where halting signups beats relaying spam from our
+  // sending domain.
+  REGISTER_GLOBAL: { maxAttempts: 200, windowMs: 60 * 60 * 1000 },
+
   API_GENERAL: { maxAttempts: 1000, windowMs: 15 * 60 * 1000 },
   ADMIN: { maxAttempts: 100, windowMs: 15 * 60 * 1000 },
   PRAYER_REQUEST: { maxAttempts: 5, windowMs: 60 * 60 * 1000 },
