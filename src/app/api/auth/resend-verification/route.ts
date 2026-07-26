@@ -1,12 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { checkRateLimit } from '@/lib/rateLimit'
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rateLimit'
+import { getClientIp } from '@/lib/clientIp'
 import { resendVerificationSchema, safeValidate, formatZodErrors } from '@/lib/validation'
 import { createVerificationToken, sendVerificationEmail } from '@/lib/emailVerification'
 import { RateLimitError, ValidationError, errorToResponse, errorResponse } from '@/lib/errors'
 
 export async function POST(request: NextRequest) {
   try {
+    // This endpoint sends mail to any address supplied, so it is a spam relay
+    // unless the source itself is capped.
+    const clientIp = getClientIp(request)
+    const ipRateLimit = await checkRateLimit(
+      `resend-verification-ip:${clientIp}`,
+      RATE_LIMITS.RESEND_VERIFICATION_IP
+    )
+    if (!ipRateLimit.success) {
+      const retryAfter = Math.ceil((ipRateLimit.resetTime - Date.now()) / 1000)
+      const err = new RateLimitError('Too many requests', retryAfter)
+      return NextResponse.json(errorToResponse(err), {
+        status: err.statusCode,
+        headers: { 'Retry-After': String(retryAfter) }
+      })
+    }
+
     const body = await request.json()
 
     const validation = safeValidate(resendVerificationSchema, body)
