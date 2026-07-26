@@ -25,6 +25,14 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy"
 
+# NEXT_PUBLIC_* is inlined into the client bundle at build time, so this must
+# be a build argument. Supplying it only as a runtime environment variable
+# leaves the widget without a site key: it renders nothing, no token is sent,
+# and the server - which does read TURNSTILE_SECRET_KEY at runtime - then
+# rejects every registration.
+ARG NEXT_PUBLIC_TURNSTILE_SITE_KEY
+ENV NEXT_PUBLIC_TURNSTILE_SITE_KEY=$NEXT_PUBLIC_TURNSTILE_SITE_KEY
+
 # Clear any potential stale cache
 RUN rm -rf .next
 
