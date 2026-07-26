@@ -5,6 +5,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { AuthBrandPanel } from '@/components/AuthBrandPanel'
+import { TurnstileWidget, isTurnstileEnabled } from '@/components/TurnstileWidget'
 
 interface RegisterPageContentProps {
   initialAppName: string
@@ -29,6 +30,8 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [focusedField, setFocusedField] = useState<string | null>(null)
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const [turnstileNonce, setTurnstileNonce] = useState(0)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,7 +43,7 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
       const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify({ ...formData, turnstileToken })
       })
 
       const data = await response.json()
@@ -50,9 +53,15 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
         setMessage(data.message)
       } else {
         setError(data.error)
+        // Turnstile tokens are single-use, so a rejected submission needs a
+        // fresh one before the visitor can retry.
+        setTurnstileToken(null)
+        setTurnstileNonce((nonce) => nonce + 1)
       }
     } catch {
       setError('An error occurred during registration')
+      setTurnstileToken(null)
+      setTurnstileNonce((nonce) => nonce + 1)
     } finally {
       setLoading(false)
     }
@@ -378,11 +387,18 @@ export default function RegisterPageContent({ initialAppName, initialBgUrl, init
               autoComplete="off"
             />
 
+            {/* Bot verification */}
+            {isTurnstileEnabled && (
+              <div className="auth-animate-fade-up auth-stagger-6 pt-1">
+                <TurnstileWidget onToken={setTurnstileToken} resetNonce={turnstileNonce} />
+              </div>
+            )}
+
             {/* Submit */}
             <div className="auth-animate-fade-up auth-stagger-6 pt-1">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || (isTurnstileEnabled && !turnstileToken)}
                 className="group relative w-full flex items-center justify-center gap-2 py-3.5 px-4 text-sm font-semibold rounded-xl cursor-pointer transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
                   background: loading

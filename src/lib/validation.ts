@@ -73,6 +73,7 @@ export const registerSchema = z.object({
     .max(50, 'Phone number too long')
     .trim(),
   honeypot: z.string().optional(),
+  turnstileToken: z.string().max(2048).optional(),
 })
 
 /**
