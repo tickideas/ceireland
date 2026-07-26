@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { prisma } from './prisma'
 import { getEmailClient, getFromHeader, isEmailConfigured, getFromName } from './email'
+import { escapeHtml } from './html'
 
 const TOKEN_EXPIRY_HOURS = 24
 const DISPOSABLE_EMAIL_DOMAINS = [
@@ -96,6 +97,10 @@ export async function sendVerificationEmail(
     const fromHeader = await getFromHeader()
     const appName = await getFromName()
 
+    // userName is attacker-controlled at registration time; it must never reach
+    // the template unescaped.
+    const safeUserName = escapeHtml(userName)
+
     await client.emails.send({
       from: fromHeader,
       to: email,
@@ -103,7 +108,7 @@ export async function sendVerificationEmail(
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #1a365d; margin-bottom: 24px;">Welcome to ${appName}!</h2>
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Dear ${userName},</p>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Dear ${safeUserName},</p>
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">
             Thank you for registering. Please verify your email address by clicking the button below:
           </p>

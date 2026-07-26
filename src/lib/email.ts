@@ -1,5 +1,6 @@
 import { UseSend } from 'usesend-js'
 import { prisma } from './prisma'
+import { escapeHtml } from './html'
 
 // Cache for email settings (1 minute TTL)
 let emailSettingsCache: {
@@ -129,6 +130,9 @@ export async function sendApprovalNotification(email: string, userName: string) 
   const fromHeader = await getFromHeader()
   const appName = await getFromName()
 
+  // userName originates from user-supplied registration data.
+  const safeUserName = escapeHtml(userName)
+
   try {
     await client.emails.send({
       from: fromHeader,
@@ -137,7 +141,7 @@ export async function sendApprovalNotification(email: string, userName: string) 
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
           <h2 style="color: #1a365d; margin-bottom: 24px;">Account Approved</h2>
-          <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Dear ${userName},</p>
+          <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">Dear ${safeUserName},</p>
           <p style="color: #4a5568; font-size: 16px; line-height: 1.6;">
             Your ${appName} account has been approved!
           </p>
