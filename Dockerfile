@@ -31,6 +31,20 @@ RUN rm -rf .next
 RUN npx prisma generate --no-hints
 RUN npm run build
 
+# Bundle maintenance scripts into self-contained CJS so they can run in the
+# runner stage, which has neither tsx nor the src/ tree. Compiling from the
+# real source means shared rules (e.g. isNameSafe) are inlined from the single
+# definition and cannot drift from what the API enforces.
+# @prisma/client stays external: it resolves its generated engine at runtime.
+RUN npx esbuild scripts/*.ts \
+      --bundle \
+      --platform=node \
+      --target=node22 \
+      --format=cjs \
+      --external:@prisma/client \
+      --outdir=scripts-dist \
+      --out-extension:.js=.cjs
+
 # Production image, copy all the files and run next
 FROM base AS runner
 WORKDIR /app
@@ -49,6 +63,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next/cache
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
+COPY --from=builder --chown=nextjs:nodejs /app/scripts-dist ./scripts-dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
