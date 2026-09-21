@@ -23,10 +23,8 @@
  * cleaned up by the database.
  */
 
-import { PrismaClient } from '@prisma/client'
+import { prisma } from '../src/lib/prisma'
 import { isNameSafe } from '../src/lib/validation'
-
-const prisma = new PrismaClient()
 
 const APPLY = process.argv.includes('--apply')
 const FORCE = process.argv.includes('--force')

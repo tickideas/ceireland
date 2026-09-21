@@ -11,10 +11,8 @@
  *   node scripts-dist/cleanup-expired.cjs --apply   # delete
  */
 
-import { PrismaClient } from '@prisma/client'
 import { cleanupExpiredTokens } from '../src/lib/emailVerification'
-
-const prisma = new PrismaClient()
+import { prisma } from '../src/lib/prisma'
 
 const APPLY = process.argv.includes('--apply')
 const BATCH_SIZE = 10_000

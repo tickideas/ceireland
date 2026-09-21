@@ -243,8 +243,9 @@ export default function AnalyticsDashboard() {
                 <Tooltip
                   contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                   labelFormatter={(value) => {
-                    const item = analytics.serviceData.find(d => d.date === value)
-                    return item ? `${formatIsoToDMY(value)} (${item.dayName})` : formatIsoToDMY(value)
+                    const date = String(value)
+                    const item = analytics.serviceData.find(d => d.date === date)
+                    return item ? `${formatIsoToDMY(date)} (${item.dayName})` : formatIsoToDMY(date)
                   }}
                 />
                 <Bar dataKey="attendance" fill="#6366f1" name="Attendance" radius={[4, 4, 0, 0]} />

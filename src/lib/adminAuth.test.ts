@@ -5,7 +5,7 @@ import { clearAllRateLimits } from './rateLimit'
 
 const TEST_SECRET = 'test-secret-key'
 process.env.JWT_SECRET = process.env.JWT_SECRET || TEST_SECRET
-process.env.NODE_ENV = 'test'
+Reflect.set(process.env, 'NODE_ENV', 'test')
 
 async function loadAuth() {
   return import('./auth')
