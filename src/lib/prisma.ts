@@ -14,7 +14,7 @@ const globalForPrisma = globalThis as unknown as {
 function createClient(): PrismaClient {
   if (isAccelerate) {
     // Accelerate manages connections; no adapter/Pool needed
-    const base = new PrismaClient()
+    const base = new PrismaClient({ accelerateUrl: dbUrl })
     return base.$extends(withAccelerate()) as unknown as PrismaClient
   }
 

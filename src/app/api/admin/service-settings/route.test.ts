@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { NextRequest } from 'next/server'
 
-process.env.NODE_ENV = 'test'
+Reflect.set(process.env, 'NODE_ENV', 'test')
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key'
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://user:pass@localhost:5432/ceireland_test'
 
@@ -36,7 +36,7 @@ test('admin service settings route rejects unauthenticated updates', async () =>
 test('admin service settings route validates payloads', async () => {
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const authModule = await import('../../../../lib/auth.ts')
-  const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
+  const auth = ((authModule as typeof authModule & { default?: typeof authModule }).default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const { PUT } = await import('./route')
   await clearAllRateLimits()
 
@@ -52,7 +52,7 @@ test('admin prayer request update returns 404 when record is missing', async () 
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const { prisma } = await import('../../../../lib/prisma.ts')
   const authModule = await import('../../../../lib/auth.ts')
-  const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
+  const auth = ((authModule as typeof authModule & { default?: typeof authModule }).default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const prayerRoute = await import('../prayer-requests/[id]/route')
   await clearAllRateLimits()
 
@@ -82,7 +82,7 @@ test('admin prayer request delete returns 404 when record is missing', async () 
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const { prisma } = await import('../../../../lib/prisma.ts')
   const authModule = await import('../../../../lib/auth.ts')
-  const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
+  const auth = ((authModule as typeof authModule & { default?: typeof authModule }).default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const prayerRoute = await import('../prayer-requests/[id]/route')
   await clearAllRateLimits()
 
@@ -112,7 +112,7 @@ test('admin salvation response update returns 404 when record is missing', async
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const { prisma } = await import('../../../../lib/prisma.ts')
   const authModule = await import('../../../../lib/auth.ts')
-  const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
+  const auth = ((authModule as typeof authModule & { default?: typeof authModule }).default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const salvationRoute = await import('../salvation-responses/[id]/route')
   await clearAllRateLimits()
 
@@ -142,7 +142,7 @@ test('admin salvation response delete returns 404 when record is missing', async
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const { prisma } = await import('../../../../lib/prisma.ts')
   const authModule = await import('../../../../lib/auth.ts')
-  const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
+  const auth = ((authModule as typeof authModule & { default?: typeof authModule }).default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const salvationRoute = await import('../salvation-responses/[id]/route')
   await clearAllRateLimits()
 

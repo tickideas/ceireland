@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { NextRequest } from 'next/server'
 
-process.env.NODE_ENV = 'test'
+Reflect.set(process.env, 'NODE_ENV', 'test')
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key'
 process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://user:pass@localhost:5432/ceireland_test'
 
@@ -36,7 +36,7 @@ test('legacy test email route rejects unauthenticated requests', async () => {
 test('legacy test email route validates email payloads', async () => {
   const { clearAllRateLimits } = await import('../../../../lib/rateLimit.ts')
   const authModule = await import('../../../../lib/auth.ts')
-  const auth = (authModule.default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
+  const auth = ((authModule as typeof authModule & { default?: typeof authModule }).default ?? authModule) as { signToken: (payload: { userId: string; email: string; role: string }) => string }
   const { POST } = await import('./route')
   await clearAllRateLimits()
 

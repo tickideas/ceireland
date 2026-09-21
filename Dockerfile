@@ -72,20 +72,25 @@ RUN mkdir -p .next/cache && chown -R nextjs:nodejs .next/cache
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./
 COPY --from=builder --chown=nextjs:nodejs /app/scripts-dist ./scripts-dist
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Install prisma CLI with all transitive deps for runtime migrations.
-# Note: effect is a transitive dep of @prisma/config and must be listed
-# explicitly because @prisma/config is already copied from the builder stage,
-# so npm does not re-resolve its sub-dependencies.
-#
 # The CLI version MUST stay pinned to the @prisma/client version in
 # package-lock.json. This install bypasses the lockfile, so leaving it
 # unpinned means each rebuild silently picks up whatever is on the registry -
 # start.sh runs `migrate deploy` with it against production on every boot, and
 # a major-version jump would stop the container from starting.
-RUN npm install --no-save --no-package-lock prisma@6.19.3 dotenv effect
+RUN npm install --no-save --no-package-lock \
+      prisma@7.10.0 \
+      deepmerge-ts@8.0.0 \
+      dotenv \
+      effect \
+      mysql2@3.23.1
+
+# Copy the generated client only after npm installs the complete Prisma CLI
+# dependency tree. Copying @prisma first makes npm treat partially copied CLI
+# packages as installed and omit their unscoped runtime dependencies.
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 USER nextjs
 

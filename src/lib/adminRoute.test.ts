@@ -5,7 +5,7 @@ import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { clearAllRateLimits } from './rateLimit'
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'test'
+if (!process.env.NODE_ENV) Reflect.set(process.env, 'NODE_ENV', 'test')
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret-key'
 
 async function loadAuth() {

@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Prisma } from '@prisma/client'
 
-process.env.NODE_ENV = process.env.NODE_ENV || 'test'
+if (!process.env.NODE_ENV) Reflect.set(process.env, 'NODE_ENV', 'test')
 process.env.DATABASE_URL =
   process.env.DATABASE_URL || 'postgresql://user:pass@localhost:5432/ceireland_test'
 
@@ -37,7 +37,7 @@ test('getCurrentLive filters by isActive, allowPublic, and now ∈ [start, end]'
   prisma.openEvent.findFirst = (async (args: { where: unknown }) => {
     captured = args.where
     return null
-  }) as typeof prisma.openEvent.findFirst
+  }) as unknown as typeof prisma.openEvent.findFirst
 
   const result = await openEvents.getCurrentLive()
 
@@ -58,7 +58,7 @@ test('getByIdWithAttendance throws NotFoundError when missing', async () => {
   const { prisma, openEvents } = await loadModule()
   const { NotFoundError } = await import('../errors')
 
-  prisma.openEvent.findUnique = (async () => null) as typeof prisma.openEvent.findUnique
+  prisma.openEvent.findUnique = (async () => null) as unknown as typeof prisma.openEvent.findUnique
 
   await assert.rejects(
     () => openEvents.getByIdWithAttendance('nope'),
@@ -247,11 +247,11 @@ test('checkIn returns alreadyRecorded=true when P2002 fires (idempotent)', async
     allowPublic: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  })) as typeof prisma.openEvent.findUnique
+  })) as unknown as typeof prisma.openEvent.findUnique
 
   prisma.openEventAttendance.create = (async () => {
     throw makePrismaKnownError('P2002')
-  }) as typeof prisma.openEventAttendance.create
+  }) as unknown as typeof prisma.openEventAttendance.create
 
   const existingRecord = {
     id: 'att-1',
@@ -262,7 +262,7 @@ test('checkIn returns alreadyRecorded=true when P2002 fires (idempotent)', async
     user: { id: 'user-1', name: 'A', email: 'a@b.com' },
   }
   prisma.openEventAttendance.findFirst = (async () =>
-    existingRecord) as typeof prisma.openEventAttendance.findFirst
+    existingRecord) as unknown as typeof prisma.openEventAttendance.findFirst
 
   const result = await openEvents.checkIn({
     openEventId: 'oe-1',
@@ -287,7 +287,7 @@ test('checkIn rejects anonymous guests outside the live window', async () => {
     allowPublic: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  })) as typeof prisma.openEvent.findUnique
+  })) as unknown as typeof prisma.openEvent.findUnique
 
   await assert.rejects(
     () =>
@@ -313,7 +313,7 @@ test('checkIn allows authenticated members outside the live window', async () =>
     allowPublic: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  })) as typeof prisma.openEvent.findUnique
+  })) as unknown as typeof prisma.openEvent.findUnique
 
   prisma.openEventAttendance.create = (async () => ({
     id: 'att-1',
@@ -322,7 +322,7 @@ test('checkIn allows authenticated members outside the live window', async () =>
     userId: 'user-1',
     checkInTime: new Date(),
     user: { id: 'user-1', name: 'A', email: 'a@b.com' },
-  })) as typeof prisma.openEventAttendance.create
+  })) as unknown as typeof prisma.openEventAttendance.create
 
   const result = await openEvents.checkIn({
     openEventId: 'oe-1',
@@ -346,7 +346,7 @@ test('checkIn requires either sessionId or userId', async () => {
     allowPublic: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  })) as typeof prisma.openEvent.findUnique
+  })) as unknown as typeof prisma.openEvent.findUnique
 
   await assert.rejects(
     () => openEvents.checkIn({ openEventId: 'oe-1', isAuthenticated: false }),
@@ -358,7 +358,7 @@ test('checkIn rejects when event does not exist', async () => {
   const { prisma, openEvents } = await loadModule()
   const { NotFoundError } = await import('../errors')
 
-  prisma.openEvent.findUnique = (async () => null) as typeof prisma.openEvent.findUnique
+  prisma.openEvent.findUnique = (async () => null) as unknown as typeof prisma.openEvent.findUnique
 
   await assert.rejects(
     () =>
@@ -388,7 +388,7 @@ test('exportCsvStream yields header first, then rows in batches, then stops', as
     allowPublic: true,
     createdAt: new Date(),
     updatedAt: new Date(),
-  })) as typeof prisma.openEvent.findUnique
+  })) as unknown as typeof prisma.openEvent.findUnique
 
   let call = 0
   prisma.openEventAttendance.findMany = (async () => {
@@ -406,7 +406,7 @@ test('exportCsvStream yields header first, then rows in batches, then stops', as
       ]
     }
     return []
-  }) as typeof prisma.openEventAttendance.findMany
+  }) as unknown as typeof prisma.openEventAttendance.findMany
 
   const chunks: string[] = []
   for await (const chunk of openEvents.exportCsvStream('oe-1')) {
